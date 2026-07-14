@@ -262,7 +262,7 @@ export function Editor({ id }: { id: string }) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSerpOpen(true)}
-              title="Voir les 3 premiers résultats Google pour le mot-clé"
+              title="Voir les 5 premiers résultats Google pour le mot-clé"
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
             >
               🔍 Concurrence

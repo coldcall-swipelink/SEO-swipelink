@@ -65,7 +65,7 @@ export function SerpDrawer({ open, keyword, onClose }: Props) {
               Concurrence Google
             </div>
             <div className="text-xs text-gray-400">
-              Top 3 résultats naturels (hors annonces)
+              Top 5 résultats naturels (hors annonces)
             </div>
           </div>
           <div className="flex items-center gap-2">

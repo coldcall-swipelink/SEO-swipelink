@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     const data = await res.json();
     // organic_results exclut les annonces (ads) : uniquement les résultats naturels.
     const organic = Array.isArray(data.organic_results) ? data.organic_results : [];
-    const results: SerpResult[] = organic.slice(0, 3).map(
+    const results: SerpResult[] = organic.slice(0, 5).map(
       (r: Record<string, unknown>, i: number) => ({
         position: typeof r.position === "number" ? (r.position as number) : i + 1,
         title: String(r.title ?? ""),
