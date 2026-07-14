@@ -63,10 +63,23 @@ type Line =
   | { kind: "numbered"; text: string; raw: string }
   | { kind: "text"; text: string };
 
+// Une ligne dépourvue de lettre/chiffre est du bruit (artefact d'OCR comme
+// « = », « — », « | ») et traitée comme une ligne vide.
+function isNoise(t: string): boolean {
+  return !/[\p{L}\p{N}]/u.test(t);
+}
+
+// Vrai si la ligne se termine comme une fin de phrase (ponctuation finale,
+// éventuellement suivie d'un guillemet/parenthèse fermante). Sert à recoller
+// les paragraphes qu'un OCR a coupés en plusieurs lignes.
+function endsParagraph(t: string): boolean {
+  return /[.!?:…][»"')\]]?$/.test(t.trim());
+}
+
 // Classe une ligne brute selon sa nature (titre markdown, puce, numéro, texte).
 function classifyLine(raw: string): Line {
   const line = raw.replace(/[ \t]+$/g, "");
-  if (line.trim() === "") return { kind: "blank" };
+  if (line.trim() === "" || isNoise(line)) return { kind: "blank" };
 
   const md = MD_HEADING_RE.exec(line.trim());
   if (md) {
@@ -123,13 +136,14 @@ export interface ParseOptions {
 
 // Analyse le texte brut collé et produit la liste de blocs correspondante.
 //
-// Principes (adaptés aux articles réels où chaque paragraphe est sur une seule
-// ligne, sans ligne vide, et où les sections sont numérotées) :
-//   - chaque ligne non vide devient son propre bloc (pas de fusion) ;
-//   - une ligne courte, isolée, sans ponctuation finale → titre ;
-//   - une ligne « 1. … » est un ÉLÉMENT DE LISTE seulement si une ligne voisine
-//     est elle aussi numérotée (vraie liste ordonnée) ; sinon c'est un TITRE de
-//     section (« 1. Maximisez votre visibilité »).
+// L'analyse gère deux formes de texte fréquentes :
+//   - le copier/coller où chaque paragraphe tient sur une seule ligne ;
+//   - la sortie d'OCR (import d'une capture d'écran) où un même paragraphe est
+//     coupé en plusieurs lignes à la largeur d'affichage.
+// Pour réconcilier les deux, les lignes de texte sont accumulées dans un tampon
+// de paragraphe qui n'est clos que sur une ponctuation finale, une ligne vide,
+// un titre ou une liste. Les titres restent détectés (ligne courte et isolée,
+// markdown, ou « 1. … » de section) et priment sur l'accumulation.
 export function parsePlainText(text: string, opts: ParseOptions = {}): Block[] {
   const newId = opts.newId ?? uniqueId;
   const lines = text.replace(/\r\n?/g, "\n").split("\n").map(classifyLine);
@@ -148,6 +162,15 @@ export function parsePlainText(text: string, opts: ParseOptions = {}): Block[] {
     return null;
   };
 
+  // Tampon du paragraphe en cours (fragments à recoller par des espaces).
+  let para: string[] = [];
+  const flushPara = () => {
+    if (para.length === 0) return;
+    const joined = para.join(" ").replace(/\s+/g, " ").trim();
+    para = [];
+    if (joined) blocks.push(paragraphBlock(inlineMarkdownToHtml(joined), newId("blk_")));
+  };
+
   // Liste en cours d'accumulation (puces ou numéros contigus).
   let list: { ordered: boolean; items: string[] } | null = null;
   const flushList = () => {
@@ -157,18 +180,23 @@ export function parsePlainText(text: string, opts: ParseOptions = {}): Block[] {
     }
   };
   const pushToList = (ordered: boolean, text: string) => {
+    flushPara();
     if (list && list.ordered !== ordered) flushList();
     if (!list) list = { ordered, items: [] };
     list.items.push(text);
   };
 
-  // Émet un titre si la ligne en a l'allure, sinon un paragraphe.
-  const pushHeadingOrParagraph = (text: string) => {
-    if (looksLikeHeading(text)) {
-      blocks.push(headingBlock(plainHeadingLevel(text), text, newId("blk_")));
-    } else {
-      blocks.push(paragraphBlock(inlineMarkdownToHtml(text), newId("blk_")));
-    }
+  const emitHeading = (level: 2 | 3 | 4, text: string) => {
+    flushPara();
+    flushList();
+    blocks.push(headingBlock(level, text, newId("blk_")));
+  };
+
+  // Ajoute une ligne au paragraphe courant, et le clôt si la phrase se termine.
+  const addText = (text: string) => {
+    flushList();
+    para.push(text);
+    if (endsParagraph(text)) flushPara();
   };
 
   for (let i = 0; i < lines.length; i++) {
@@ -176,11 +204,12 @@ export function parsePlainText(text: string, opts: ParseOptions = {}): Block[] {
 
     switch (ln.kind) {
       case "blank":
-        break; // n'interrompt pas une liste (éléments parfois espacés)
+        flushPara(); // ligne vide = frontière franche de paragraphe
+        flushList();
+        break;
 
       case "mdHeading":
-        flushList();
-        blocks.push(headingBlock(ln.level, ln.text, newId("blk_")));
+        emitHeading(ln.level, ln.text);
         break;
 
       case "bullet":
@@ -193,22 +222,29 @@ export function parsePlainText(text: string, opts: ParseOptions = {}): Block[] {
         const partOfRun =
           prev?.kind === "numbered" || next?.kind === "numbered";
         if (partOfRun) {
-          pushToList(true, ln.text);
+          pushToList(true, ln.text); // vraie liste numérotée
+        } else if (looksLikeHeading(ln.text)) {
+          emitHeading(plainHeadingLevel(ln.raw), ln.raw); // « 1. Titre de section »
         } else {
-          // « 1. Titre de section » isolé : c'est un titre, pas une liste.
-          flushList();
-          pushHeadingOrParagraph(ln.raw);
+          addText(ln.raw); // phrase numérotée longue → paragraphe
         }
         break;
       }
 
       case "text":
-        flushList();
-        pushHeadingOrParagraph(ln.text);
+        // Une ligne courte, isolée, sans ponctuation finale est un titre ; elle
+        // prime sur l'accumulation. Les lignes de paragraphe (longues, ou finies
+        // par une ponctuation) sont recollées.
+        if (looksLikeHeading(ln.text)) {
+          emitHeading(plainHeadingLevel(ln.text), ln.text);
+        } else {
+          addText(ln.text);
+        }
         break;
     }
   }
 
+  flushPara();
   flushList();
   return blocks;
 }

@@ -77,7 +77,12 @@ export function ImportModal({
       // Import dynamique : la bibliothèque (volumineuse) n'est chargée qu'à
       // la première utilisation de l'OCR.
       const { createWorker } = await import("tesseract.js");
+      // Moteur, cœur WASM et données de langue sont servis en local (dossier
+      // public/tesseract) : aucun appel à un CDN externe, fonctionne hors-ligne.
       const worker = await createWorker("fra", 1, {
+        workerPath: "/tesseract/worker.min.js",
+        corePath: "/tesseract/tesseract-core-simd-lstm.wasm.js",
+        langPath: "/tesseract/lang",
         logger: (m: { status: string; progress: number }) => {
           if (m.status === "recognizing text") {
             setOcr({
@@ -208,7 +213,10 @@ export function ImportModal({
                 <p className="text-xs text-gray-400">
                   Glissez-déposez une image, cliquez pour en choisir une, ou
                   collez une capture (Ctrl/⌘+V). Le texte est extrait dans le
-                  navigateur, sans envoi à un service externe.
+                  navigateur, sans envoi à un service externe. Astuce : cadrez
+                  la capture sur l'article (sans les menus) pour un meilleur
+                  résultat ; les très gros titres peuvent demander une petite
+                  correction.
                 </p>
                 <input
                   ref={fileInputRef}
