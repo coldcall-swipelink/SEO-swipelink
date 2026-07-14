@@ -89,8 +89,17 @@ function BlockView({ block }: { block: Block }) {
     case "cta":
       return (
         <div className="my-8 rounded-2xl border border-indigo-100 bg-indigo-50 p-6 text-center">
-          <h3 className="mb-2 text-xl font-bold text-gray-900">{block.title}</h3>
-          <p className="mb-4 text-gray-600">{block.text}</p>
+          {/* marges inline : neutralisent la typographie de .prose-article
+              (sinon le titre reçoit une marge haute → carte non centrée verticalement) */}
+          <h3
+            style={{ margin: "0 0 0.5rem" }}
+            className="text-xl font-bold text-gray-900"
+          >
+            {block.title}
+          </h3>
+          <p style={{ margin: "0 0 1.25rem" }} className="text-gray-600">
+            {block.text}
+          </p>
           <StyledButton
             // Un CTA est un encart centré : le bouton est toujours centré.
             style={{
