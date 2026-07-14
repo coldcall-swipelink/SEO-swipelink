@@ -3,6 +3,8 @@ import { promises as fs } from "fs";
 import path from "path";
 import { put } from "@vercel/blob";
 import { uniqueId } from "@/lib/slug";
+import { hasDatabase } from "@/lib/db";
+import { putUpload } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
   const ext = EXT[file.type] ?? "bin";
   const filename = `${uniqueId("img_")}.${ext}`;
 
-  // Production : Vercel Blob (CDN) si le token est configuré.
+  // 1) Vercel Blob (CDN) si le token d'écriture est configuré — option idéale.
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     try {
       const blob = await put(`uploads/${filename}`, file, {
@@ -63,7 +65,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Développement : écriture sur le disque local (public/uploads).
+  // 2) Postgres si disponible (aucun token requis) — servi via /api/uploads/[id].
+  if (hasDatabase()) {
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await putUpload(filename, file.type, buffer);
+      return NextResponse.json({ url: `/api/uploads/${filename}` });
+    } catch {
+      return NextResponse.json(
+        { error: "Échec de l'enregistrement de l'image." },
+        { status: 502 }
+      );
+    }
+  }
+
+  // 3) Développement : écriture sur le disque local (public/uploads).
   try {
     const dir = path.join(process.cwd(), "public", "uploads");
     await fs.mkdir(dir, { recursive: true });
@@ -74,7 +90,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Stockage indisponible. En production, configurez un store Vercel Blob (variable BLOB_READ_WRITE_TOKEN).",
+          "Stockage indisponible. Configurez une base Postgres (DATABASE_URL) ou un store Vercel Blob (BLOB_READ_WRITE_TOKEN).",
       },
       { status: 500 }
     );
