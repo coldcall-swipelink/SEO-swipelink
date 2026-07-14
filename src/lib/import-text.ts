@@ -51,34 +51,55 @@ function markdownHeadingLevel(hashes: number): 2 | 3 | 4 {
   return 4;
 }
 
-const BULLET_RE = /^\s*([-*•·])\s+(.*)$/;
-const ORDERED_RE = /^\s*\d+[.)]\s+(.*)$/;
+const BULLET_RE = /^\s*([-*•·–—])\s+(.*)$/;
+const ORDERED_RE = /^\s*(\d+)[.)]\s+(.*)$/;
 const MD_HEADING_RE = /^(#{1,6})\s+(.*)$/;
 
-// Extrait le contenu d'une ligne de liste (puce ou numérotée), ou null sinon.
-function listItemContent(line: string): { ordered: boolean; text: string } | null {
+// Type de ligne reconnu lors de l'analyse.
+type Line =
+  | { kind: "blank" }
+  | { kind: "mdHeading"; level: 2 | 3 | 4; text: string }
+  | { kind: "bullet"; text: string }
+  | { kind: "numbered"; text: string; raw: string }
+  | { kind: "text"; text: string };
+
+// Classe une ligne brute selon sa nature (titre markdown, puce, numéro, texte).
+function classifyLine(raw: string): Line {
+  const line = raw.replace(/[ \t]+$/g, "");
+  if (line.trim() === "") return { kind: "blank" };
+
+  const md = MD_HEADING_RE.exec(line.trim());
+  if (md) {
+    return {
+      kind: "mdHeading",
+      level: markdownHeadingLevel(md[1].length),
+      text: md[2].trim(),
+    };
+  }
+
   const bullet = BULLET_RE.exec(line);
-  if (bullet) return { ordered: false, text: bullet[2].trim() };
+  if (bullet) return { kind: "bullet", text: bullet[2].trim() };
+
   const ordered = ORDERED_RE.exec(line);
-  if (ordered) return { ordered: true, text: ordered[1].trim() };
-  return null;
+  if (ordered) return { kind: "numbered", text: ordered[2].trim(), raw: line.trim() };
+
+  return { kind: "text", text: line.trim() };
 }
 
-// Heuristique : une ligne isolée et courte, sans ponctuation finale de phrase,
-// est probablement un titre dans un texte brut sans balises markdown.
+// Heuristique : une ligne courte, sans ponctuation finale de phrase, est
+// probablement un titre dans un texte brut sans balises markdown.
 function looksLikeHeading(text: string): boolean {
   const t = text.trim();
   if (t.length === 0 || t.length > 90) return false;
-  if (/[.:!?,;]$/.test(t)) return false; // se termine comme une phrase
+  if (/[.!?,;]$/.test(t)) return false; // se termine comme une phrase
   const words = t.split(/\s+/);
   if (words.length > 14) return false; // trop long pour un titre
   return true;
 }
 
-// Transforme un titre en texte brut (avec éventuel préfixe de numérotation
-// « 1. », « I. », « Chapitre 2 – ») en niveau H3 pour les sous-titres.
+// Niveau d'un titre en texte brut : un sous-titre numéroté « 1.2 … » ou « 2) … »
+// est plutôt un H3, sinon H2.
 function plainHeadingLevel(text: string): 2 | 3 | 4 {
-  // Un sous-titre numéroté « 1.2 … » ou « 2) … » est plutôt un H3.
   if (/^\s*\d+([.)]\d+)+/.test(text)) return 3;
   return 2;
 }
@@ -102,77 +123,93 @@ export interface ParseOptions {
 
 // Analyse le texte brut collé et produit la liste de blocs correspondante.
 //
-// L'analyse est effectuée ligne par ligne afin de gérer les cas où un titre
-// markdown ou une liste suivent directement du texte, sans ligne vide entre eux.
-// On accumule les lignes de texte contiguës dans un « groupe » ; un groupe est
-// clos (« flush ») par une ligne vide, un titre, un début de liste ou la fin.
+// Principes (adaptés aux articles réels où chaque paragraphe est sur une seule
+// ligne, sans ligne vide, et où les sections sont numérotées) :
+//   - chaque ligne non vide devient son propre bloc (pas de fusion) ;
+//   - une ligne courte, isolée, sans ponctuation finale → titre ;
+//   - une ligne « 1. … » est un ÉLÉMENT DE LISTE seulement si une ligne voisine
+//     est elle aussi numérotée (vraie liste ordonnée) ; sinon c'est un TITRE de
+//     section (« 1. Maximisez votre visibilité »).
 export function parsePlainText(text: string, opts: ParseOptions = {}): Block[] {
   const newId = opts.newId ?? uniqueId;
-  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const lines = text.replace(/\r\n?/g, "\n").split("\n").map(classifyLine);
   const blocks: Block[] = [];
 
-  let textGroup: string[] = []; // lignes de texte contiguës en cours
-  let listItems: string[] = []; // éléments de liste contigus en cours
-  let listOrdered = false;
+  // Ligne significative (non vide) précédente / suivante, pour détecter les
+  // véritables suites d'éléments numérotés.
+  const nextMeaningful = (i: number): Line | null => {
+    for (let j = i + 1; j < lines.length; j++)
+      if (lines[j].kind !== "blank") return lines[j];
+    return null;
+  };
+  const prevMeaningful = (i: number): Line | null => {
+    for (let j = i - 1; j >= 0; j--)
+      if (lines[j].kind !== "blank") return lines[j];
+    return null;
+  };
 
-  // Un groupe de texte devient un titre s'il tient sur une seule ligne et en a
-  // l'allure ; sinon c'est un paragraphe (lignes fusionnées par des espaces).
-  function flushText() {
-    if (textGroup.length === 0) return;
-    if (textGroup.length === 1 && looksLikeHeading(textGroup[0])) {
-      const t = textGroup[0].trim();
-      blocks.push(headingBlock(plainHeadingLevel(t), t, newId("blk_")));
+  // Liste en cours d'accumulation (puces ou numéros contigus).
+  let list: { ordered: boolean; items: string[] } | null = null;
+  const flushList = () => {
+    if (list) {
+      blocks.push(listBlock(list.ordered, list.items, newId("blk_")));
+      list = null;
+    }
+  };
+  const pushToList = (ordered: boolean, text: string) => {
+    if (list && list.ordered !== ordered) flushList();
+    if (!list) list = { ordered, items: [] };
+    list.items.push(text);
+  };
+
+  // Émet un titre si la ligne en a l'allure, sinon un paragraphe.
+  const pushHeadingOrParagraph = (text: string) => {
+    if (looksLikeHeading(text)) {
+      blocks.push(headingBlock(plainHeadingLevel(text), text, newId("blk_")));
     } else {
-      const html = inlineMarkdownToHtml(textGroup.join(" ").trim());
-      blocks.push(paragraphBlock(html, newId("blk_")));
+      blocks.push(paragraphBlock(inlineMarkdownToHtml(text), newId("blk_")));
     }
-    textGroup = [];
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i];
+
+    switch (ln.kind) {
+      case "blank":
+        break; // n'interrompt pas une liste (éléments parfois espacés)
+
+      case "mdHeading":
+        flushList();
+        blocks.push(headingBlock(ln.level, ln.text, newId("blk_")));
+        break;
+
+      case "bullet":
+        pushToList(false, ln.text);
+        break;
+
+      case "numbered": {
+        const prev = prevMeaningful(i);
+        const next = nextMeaningful(i);
+        const partOfRun =
+          prev?.kind === "numbered" || next?.kind === "numbered";
+        if (partOfRun) {
+          pushToList(true, ln.text);
+        } else {
+          // « 1. Titre de section » isolé : c'est un titre, pas une liste.
+          flushList();
+          pushHeadingOrParagraph(ln.raw);
+        }
+        break;
+      }
+
+      case "text":
+        flushList();
+        pushHeadingOrParagraph(ln.text);
+        break;
+    }
   }
 
-  function flushList() {
-    if (listItems.length === 0) return;
-    blocks.push(listBlock(listOrdered, listItems, newId("blk_")));
-    listItems = [];
-  }
-
-  for (const raw of lines) {
-    const line = raw.replace(/[ \t]+$/g, "");
-
-    // Ligne vide : clôt les groupes en cours.
-    if (line.trim() === "") {
-      flushText();
-      flushList();
-      continue;
-    }
-
-    // Titre markdown explicite (# … ###### …).
-    const md = MD_HEADING_RE.exec(line.trim());
-    if (md) {
-      flushText();
-      flushList();
-      blocks.push(
-        headingBlock(markdownHeadingLevel(md[1].length), md[2], newId("blk_"))
-      );
-      continue;
-    }
-
-    // Élément de liste : accumulé avec les éléments contigus du même type.
-    const item = listItemContent(line);
-    if (item) {
-      flushText();
-      if (listItems.length === 0) listOrdered = item.ordered;
-      listItems.push(item.text);
-      continue;
-    }
-
-    // Ligne de texte ordinaire : une liste en cours est close avant d'ajouter.
-    flushList();
-    textGroup.push(line.trim());
-  }
-
-  flushText();
   flushList();
-
   return blocks;
 }
 
