@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getPublishedArticles } from "@/lib/store";
+import { listPublicViews } from "@/lib/articles";
 import { SITE } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BlogIndexPage() {
-  const articles = await getPublishedArticles();
+  const articles = await listPublicViews();
 
   return (
     <div className="min-h-screen bg-white">

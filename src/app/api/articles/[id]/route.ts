@@ -28,14 +28,8 @@ export async function PUT(
     return NextResponse.json({ error: "Corps JSON invalide" }, { status: 400 });
   }
 
-  // Gestion de la date de publication au changement de statut.
-  if (patch.status === "published") {
-    const existing = await getArticle(id);
-    if (existing && !existing.publishedAt) {
-      patch.publishedAt = new Date().toISOString();
-    }
-  }
-
+  // Le PUT ne sert qu'à sauvegarder le brouillon. La publication (statut,
+  // instantané publié, date) passe par les endpoints /publish et /unpublish.
   const updated = await updateArticle(id, patch);
   if (!updated) {
     return NextResponse.json({ error: "Article introuvable" }, { status: 404 });

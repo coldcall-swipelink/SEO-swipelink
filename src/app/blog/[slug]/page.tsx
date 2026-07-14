@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getArticleBySlug, getPublishedArticles } from "@/lib/store";
+import { getPublicViewBySlug, listPublicViews } from "@/lib/articles";
 import { ArticleRenderer } from "@/components/ArticleRenderer";
 import { articleJsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/jsonld";
 import { analyzeSeo } from "@/lib/seo";
@@ -15,7 +15,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const article = await getArticleBySlug(slug);
+  const article = await getPublicViewBySlug(slug);
   if (!article) return { title: "Article introuvable" };
 
   const title = article.seo.metaTitle || article.title;
@@ -56,12 +56,12 @@ export default async function BlogArticlePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const article = await getArticleBySlug(slug);
-  if (!article || article.status !== "published") notFound();
+  const article = await getPublicViewBySlug(slug);
+  if (!article) notFound();
 
   const report = analyzeSeo(article);
   const faq = faqJsonLd(article);
-  const related = (await getPublishedArticles())
+  const related = (await listPublicViews())
     .filter((a) => a.id !== article.id)
     .slice(0, 3);
 

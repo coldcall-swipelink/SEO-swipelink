@@ -1,9 +1,9 @@
 // Article de démonstration inséré au premier lancement.
-import { Article } from "./types";
+import { Article, contentSnapshot } from "./types";
 
 export function seedArticles(): Article[] {
   const now = "2026-07-01T09:00:00.000Z";
-  return [
+  const articles: Article[] = [
     {
       id: "demo-seo-guide",
       title: "Le guide complet du SEO on-page en 2026",
@@ -14,6 +14,7 @@ export function seedArticles(): Article[] {
         "https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?w=1200&q=80",
       author: "Équipe SwipeLink",
       status: "published",
+      published: null,
       blocks: [
         {
           id: "b1",
@@ -91,4 +92,9 @@ export function seedArticles(): Article[] {
       publishedAt: now,
     },
   ];
+
+  // Les articles de démo déjà publiés reçoivent leur instantané publié.
+  return articles.map((a) =>
+    a.status === "published" ? { ...a, published: contentSnapshot(a) } : a
+  );
 }

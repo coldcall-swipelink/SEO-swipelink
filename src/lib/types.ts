@@ -93,16 +93,32 @@ export interface ArticleSeo {
   noindex: boolean;
 }
 
-export interface Article {
-  id: string;
+// Instantané figé du contenu tel qu'il est publié publiquement.
+// Le brouillon (champs de premier niveau de Article) peut évoluer sans
+// impacter cette version tant que l'utilisateur ne republie pas.
+export interface PublishedContent {
   title: string;
   slug: string;
   excerpt: string;
   coverImage: string;
   author: string;
-  status: ArticleStatus;
   blocks: Block[];
   seo: ArticleSeo;
+}
+
+export interface Article {
+  id: string;
+  // --- Brouillon en cours d'édition ---
+  title: string;
+  slug: string;
+  excerpt: string;
+  coverImage: string;
+  author: string;
+  blocks: Block[];
+  seo: ArticleSeo;
+  // --- Statut & version publiée ---
+  status: ArticleStatus;
+  published: PublishedContent | null; // instantané visible publiquement
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
@@ -116,7 +132,6 @@ export function emptyArticle(id: string, now: string): Article {
     excerpt: "",
     coverImage: "",
     author: "",
-    status: "draft",
     blocks: [],
     seo: {
       metaTitle: "",
@@ -126,8 +141,34 @@ export function emptyArticle(id: string, now: string): Article {
       ogImage: "",
       noindex: false,
     },
+    status: "draft",
+    published: null,
     createdAt: now,
     updatedAt: now,
     publishedAt: null,
   };
+}
+
+// Extrait l'instantané de contenu à partir du brouillon courant.
+export function contentSnapshot(a: Article): PublishedContent {
+  return {
+    title: a.title,
+    slug: a.slug,
+    excerpt: a.excerpt,
+    coverImage: a.coverImage,
+    author: a.author,
+    blocks: a.blocks,
+    seo: a.seo,
+  };
+}
+
+// Vue publique : superpose l'instantané publié sur la structure Article
+// (repli sur le brouillon pour les articles hérités sans instantané).
+export function toPublicView(a: Article): Article {
+  const p = a.published ?? contentSnapshot(a);
+  return { ...a, ...p };
+}
+
+export function contentEquals(a: PublishedContent, b: PublishedContent): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }

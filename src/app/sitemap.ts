@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
-import { getPublishedArticles } from "@/lib/store";
+import { listPublicViews } from "@/lib/articles";
 import { SITE } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const articles = await getPublishedArticles();
+  const articles = await listPublicViews();
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: SITE.url, lastModified: new Date(), changeFrequency: "weekly", priority: 1 },

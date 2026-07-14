@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Article, Block, BlockType } from "@/lib/types";
+import {
+  Article,
+  Block,
+  BlockType,
+  PublishedContent,
+  contentSnapshot,
+  contentEquals,
+} from "@/lib/types";
 import { uniqueId, slugify } from "@/lib/slug";
 import { BlockEditor } from "./BlockEditor";
 import { SeoPanel, GooglePreview } from "./SeoPanel";
@@ -28,8 +35,16 @@ export function Editor({ id }: { id: string }) {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setTab] = useState<Tab>("seo");
   const [showMenu, setShowMenu] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  // Référence de la version publiée, pour détecter les modifications non publiées.
+  const [baseline, setBaseline] = useState<PublishedContent | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dirty = useRef(false);
+
+  // Modifications du brouillon non encore répercutées sur la version en ligne.
+  const hasUnpublishedChanges =
+    article && baseline
+      ? !contentEquals(contentSnapshot(article), baseline)
+      : false;
 
   // Chargement initial
   useEffect(() => {
@@ -41,22 +56,37 @@ export function Editor({ id }: { id: string }) {
         }
         return r.json();
       })
-      .then((data) => data && setArticle(data));
+      .then((data: Article | null) => {
+        if (data) {
+          setArticle(data);
+          setBaseline(data.published ?? contentSnapshot(data));
+        }
+      });
   }, [id]);
 
+  // Autosave : n'envoie QUE les champs du brouillon (jamais le statut ni
+  // l'instantané publié), de sorte qu'éditer ne modifie pas la version en ligne.
   const save = useCallback(async (next: Article) => {
     setSaveState("saving");
     try {
+      const payload = {
+        title: next.title,
+        slug: next.slug,
+        excerpt: next.excerpt,
+        coverImage: next.coverImage,
+        author: next.author,
+        blocks: next.blocks,
+        seo: next.seo,
+      };
       const res = await fetch(`/api/articles/${next.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("save failed");
       const saved = await res.json();
       setArticle((cur) => (cur ? { ...cur, updatedAt: saved.updatedAt } : cur));
       setSaveState("saved");
-      dirty.current = false;
     } catch {
       setSaveState("error");
     }
@@ -67,7 +97,6 @@ export function Editor({ id }: { id: string }) {
     setArticle((cur) => {
       if (!cur) return cur;
       const next = { ...cur, ...patch };
-      dirty.current = true;
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => save(next), 900);
       return next;
@@ -99,18 +128,49 @@ export function Editor({ id }: { id: string }) {
     update({ blocks });
   }
 
-  async function togglePublish() {
-    if (!article) return;
-    if (article.status === "draft" && !article.slug) {
-      update({ slug: slugify(article.title || "article") });
+  // Publie ou met à jour la version en ligne : fige le brouillon courant.
+  async function publish() {
+    if (!article || publishing) return;
+    setPublishing(true);
+    try {
+      // Garantit un slug avant publication.
+      const a = article.slug
+        ? article
+        : { ...article, slug: slugify(article.title || "article") };
+      if (a !== article) setArticle(a);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      await save(a); // persiste le brouillon (avec slug) côté serveur
+
+      const res = await fetch(`/api/articles/${id}/publish`, { method: "POST" });
+      if (!res.ok) throw new Error("publish failed");
+      const updated: Article = await res.json();
+      setArticle(updated);
+      setBaseline(updated.published);
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    } finally {
+      setPublishing(false);
     }
-    const next: Article = {
-      ...article,
-      status: article.status === "published" ? "draft" : "published",
-      slug: article.slug || slugify(article.title || "article"),
-    };
-    setArticle(next);
-    await save(next);
+  }
+
+  async function unpublish() {
+    if (!article || publishing) return;
+    if (!confirm("Retirer cet article du site public ?")) return;
+    setPublishing(true);
+    try {
+      const res = await fetch(`/api/articles/${id}/unpublish`, { method: "POST" });
+      if (res.ok) setArticle(await res.json());
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  // Ouvre l'aperçu après avoir persisté le brouillon courant.
+  async function preview() {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (article) await save(article);
+    window.open(`/preview/${id}`, "_blank");
   }
 
   if (notFound) {
@@ -144,27 +204,62 @@ export function Editor({ id }: { id: string }) {
               ← Tableau de bord
             </Link>
             <SaveIndicator state={saveState} />
+            {article.status === "published" && hasUnpublishedChanges && (
+              <span className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                Modifications non publiées
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
-            {article.status === "published" && (
+            <button
+              onClick={preview}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
+              👁️ Aperçu
+            </button>
+
+            {article.status === "published" && article.published && (
               <Link
-                href={`/blog/${article.slug}`}
+                href={`/blog/${article.published.slug}`}
                 target="_blank"
                 className="text-sm font-medium text-gray-600 hover:text-gray-900"
               >
                 Voir en ligne ↗
               </Link>
             )}
-            <button
-              onClick={togglePublish}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition ${
-                article.status === "published"
-                  ? "bg-amber-500 hover:bg-amber-600"
-                  : "bg-brand hover:bg-brand-dark"
-              }`}
-            >
-              {article.status === "published" ? "Dépublier" : "Publier"}
-            </button>
+
+            {article.status === "published" && (
+              <button
+                onClick={unpublish}
+                disabled={publishing}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100 disabled:opacity-50"
+              >
+                Dépublier
+              </button>
+            )}
+
+            {article.status === "published" ? (
+              <button
+                onClick={publish}
+                disabled={publishing || !hasUnpublishedChanges}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {publishing
+                  ? "Publication…"
+                  : hasUnpublishedChanges
+                  ? "Mettre à jour et publier"
+                  : "À jour ✓"}
+              </button>
+            ) : (
+              <button
+                onClick={publish}
+                disabled={publishing}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-50"
+              >
+                {publishing ? "Publication…" : "Publier"}
+              </button>
+            )}
           </div>
         </div>
       </header>
