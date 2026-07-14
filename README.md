@@ -4,15 +4,15 @@ SaaS de publication d'articles de blog avec **gestion SEO on-page avancée**. R�
 avec un éditeur par blocs, optimisez en temps réel grâce à une analyse type
 Yoast/RankMath, puis publiez des pages parfaitement structurées pour Google.
 
-> Première version (MVP). Le stockage se fait dans un fichier JSON local
-> (`data/articles.json`), volontairement simple à remplacer par une vraie base de
-> données par la suite.
+> Première version (MVP). Le stockage bascule automatiquement selon
+> l'environnement : **Postgres** si `DATABASE_URL` est défini (production),
+> **fichier JSON local** sinon (développement, sans base à configurer).
 
 ## Stack
 
 - **Next.js 15** (App Router) + **React 19** + **TypeScript**
 - **Tailwind CSS v4**
-- Stockage fichier JSON (aucune base de données à configurer)
+- **Postgres** (via `postgres.js`) en production ; fichier JSON en secours local
 
 ## Démarrage
 
@@ -21,7 +21,28 @@ npm install
 npm run dev
 ```
 
-Ouvrez [http://localhost:3000](http://localhost:3000).
+Ouvrez [http://localhost:3000](http://localhost:3000). Sans `DATABASE_URL`, les
+articles sont stockés dans `data/articles.json` (créé automatiquement).
+
+## Déploiement (Vercel + Postgres)
+
+Le filesystem de Vercel est **en lecture seule** : le stockage fichier n'y
+fonctionne pas. Il faut donc une base Postgres (Neon, Supabase ou Vercel
+Postgres — toutes trois compatibles).
+
+1. Créez une base Postgres (offre gratuite chez [Neon](https://neon.tech) ou
+   [Supabase](https://supabase.com)).
+2. Récupérez l'**URL de connexion « pooler »** :
+   - Neon : l'URL « Pooled connection » (`…-pooler.…`)
+   - Supabase : « Connection pooler », port `6543`, mode « Transaction »
+3. Dans Vercel → **Settings → Environment Variables**, ajoutez :
+   - `DATABASE_URL` = votre URL de connexion (avec `?sslmode=require`)
+   - `NEXT_PUBLIC_SITE_URL` = l'URL publique de votre site
+4. Déployez. Au premier accès, la table `articles` et l'article de démo sont
+   créés automatiquement (aucune migration manuelle).
+
+En local, copiez `.env.example` vers `.env` et renseignez `DATABASE_URL` pour
+tester le backend Postgres.
 
 - `/` — page d'accueil (landing)
 - `/dashboard` — liste et création d'articles

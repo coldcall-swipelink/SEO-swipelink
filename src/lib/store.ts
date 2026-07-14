@@ -1,90 +1,22 @@
-// Couche de persistance simple basée sur un fichier JSON.
-// Facile à remplacer par une vraie base de données plus tard : il suffit de
-// réimplémenter les fonctions exportées ci-dessous.
+// Point d'entrée unique de la persistance.
+// Sélectionne automatiquement le backend :
+//   - Postgres si DATABASE_URL est défini (production / Vercel)
+//   - Fichier JSON local sinon (développement, sans base à configurer)
+//
+// Le reste de l'application n'importe QUE ce module : changer de backend
+// n'impacte aucun autre fichier.
 
-import { promises as fs } from "fs";
-import path from "path";
-import { Article } from "./types";
-import { seedArticles } from "./seed";
+import { hasDatabase } from "./db";
+import { fileStore } from "./store-file";
+import { pgStore } from "./store-pg";
+import type { ArticleStore } from "./store-types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "articles.json");
+const store: ArticleStore = hasDatabase() ? pgStore : fileStore;
 
-async function ensureFile(): Promise<void> {
-  try {
-    await fs.access(DATA_FILE);
-  } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(DATA_FILE, JSON.stringify(seedArticles(), null, 2), "utf8");
-  }
-}
-
-async function readAll(): Promise<Article[]> {
-  await ensureFile();
-  const raw = await fs.readFile(DATA_FILE, "utf8");
-  try {
-    return JSON.parse(raw) as Article[];
-  } catch {
-    return [];
-  }
-}
-
-async function writeAll(articles: Article[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(DATA_FILE, JSON.stringify(articles, null, 2), "utf8");
-}
-
-export async function listArticles(): Promise<Article[]> {
-  const articles = await readAll();
-  return articles.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-}
-
-export async function getArticle(id: string): Promise<Article | null> {
-  const articles = await readAll();
-  return articles.find((a) => a.id === id) ?? null;
-}
-
-export async function getArticleBySlug(slug: string): Promise<Article | null> {
-  const articles = await readAll();
-  return articles.find((a) => a.slug === slug) ?? null;
-}
-
-export async function getPublishedArticles(): Promise<Article[]> {
-  const articles = await readAll();
-  return articles
-    .filter((a) => a.status === "published")
-    .sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""));
-}
-
-export async function createArticle(article: Article): Promise<Article> {
-  const articles = await readAll();
-  articles.push(article);
-  await writeAll(articles);
-  return article;
-}
-
-export async function updateArticle(
-  id: string,
-  patch: Partial<Article>
-): Promise<Article | null> {
-  const articles = await readAll();
-  const index = articles.findIndex((a) => a.id === id);
-  if (index === -1) return null;
-  const updated: Article = {
-    ...articles[index],
-    ...patch,
-    id, // l'id ne change jamais
-    updatedAt: new Date().toISOString(),
-  };
-  articles[index] = updated;
-  await writeAll(articles);
-  return updated;
-}
-
-export async function deleteArticle(id: string): Promise<boolean> {
-  const articles = await readAll();
-  const next = articles.filter((a) => a.id !== id);
-  if (next.length === articles.length) return false;
-  await writeAll(next);
-  return true;
-}
+export const listArticles = store.listArticles.bind(store);
+export const getArticle = store.getArticle.bind(store);
+export const getArticleBySlug = store.getArticleBySlug.bind(store);
+export const getPublishedArticles = store.getPublishedArticles.bind(store);
+export const createArticle = store.createArticle.bind(store);
+export const updateArticle = store.updateArticle.bind(store);
+export const deleteArticle = store.deleteArticle.bind(store);
