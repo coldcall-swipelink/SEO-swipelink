@@ -410,7 +410,7 @@ export function Editor({ id }: { id: string }) {
             </button>
             <button
               onClick={() => setShowImport(true)}
-              title="Coller le texte brut d'un article existant pour générer les blocs"
+              title="Coller le texte brut ou une capture d'écran d'un article existant pour générer les blocs"
               className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 px-5 py-4 text-gray-500 transition hover:border-brand hover:text-brand"
             >
               <span className="text-lg">📥</span> Importer un article
