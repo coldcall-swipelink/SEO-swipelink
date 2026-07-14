@@ -197,9 +197,9 @@ export function Editor({ id }: { id: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
       {/* Barre supérieure */}
-      <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/90 backdrop-blur lg:shrink-0">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-4">
             <Link href="/dashboard" className="text-gray-400 hover:text-gray-700">
@@ -266,9 +266,9 @@ export function Editor({ id }: { id: string }) {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 py-8 lg:grid-cols-[1fr_380px]">
-        {/* Colonne d'édition */}
-        <main>
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-6 py-8 lg:min-h-0 lg:flex-1 lg:grid-cols-[1fr_380px] lg:gap-8 lg:overflow-hidden lg:py-0">
+        {/* Colonne d'édition — défilement indépendant */}
+        <main className="lg:min-h-0 lg:overflow-y-auto lg:py-8 lg:pr-3">
           <input
             value={article.title}
             onChange={(e) => update({ title: e.target.value })}
@@ -319,8 +319,8 @@ export function Editor({ id }: { id: string }) {
           </div>
         </main>
 
-        {/* Colonne latérale */}
-        <aside className="lg:sticky lg:top-20 lg:h-fit">
+        {/* Colonne latérale — défilement indépendant */}
+        <aside className="lg:min-h-0 lg:overflow-y-auto lg:py-8">
           <div className="mb-4">
             <GooglePreview article={article} />
           </div>

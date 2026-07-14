@@ -81,6 +81,23 @@ body {
   font-weight: 700;
 }
 
+/* FAQ : affordance de clic (chevron animé, marqueur natif masqué) */
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+.faq-item summary::marker {
+  content: "";
+}
+.faq-item .faq-chevron {
+  transition: transform 0.2s ease;
+}
+.faq-item[open] .faq-chevron {
+  transform: rotate(180deg);
+}
+.faq-item[open] > summary {
+  color: var(--brand);
+}
+
 /* Éditeur contenteditable */
 .rt-editor:empty:before {
   content: attr(data-placeholder);

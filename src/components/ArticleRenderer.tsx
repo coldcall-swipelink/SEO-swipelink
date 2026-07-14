@@ -103,15 +103,30 @@ function BlockView({ block }: { block: Block }) {
       return (
         <div className="my-8">
           {block.title && (
-            <h2 className="mb-4 text-2xl font-bold">{block.title}</h2>
+            <h2 className="mb-1 text-2xl font-bold">{block.title}</h2>
           )}
-          <div className="divide-y divide-gray-200 rounded-2xl border border-gray-200 bg-white">
+          <p className="mb-4 text-sm text-gray-400">
+            Cliquez sur une question pour afficher la réponse.
+          </p>
+          <div className="divide-y divide-gray-200 overflow-hidden rounded-2xl border border-gray-200 bg-white">
             {block.items.map((item) => (
-              <details key={item.id} className="group px-5 py-4">
-                <summary className="cursor-pointer list-none font-semibold text-gray-900 marker:hidden">
-                  {item.question}
+              <details key={item.id} className="faq-item">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-semibold text-gray-900 transition marker:hidden hover:bg-gray-50">
+                  <span>{item.question}</span>
+                  <svg
+                    className="faq-chevron h-5 w-5 shrink-0 text-brand"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M6 8l4 4 4-4" />
+                  </svg>
                 </summary>
-                <p className="mt-2 text-gray-600">{item.answer}</p>
+                <div className="px-5 pb-4 text-gray-600">{item.answer}</div>
               </details>
             ))}
           </div>
