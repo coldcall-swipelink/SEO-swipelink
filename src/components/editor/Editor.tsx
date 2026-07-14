@@ -216,7 +216,7 @@ export function Editor({ id }: { id: string }) {
     highlightTimer.current = setTimeout(() => {
       setHighlightIds([]);
       setHighlightField(null);
-    }, 3200);
+    }, 4500);
   }
 
   if (notFound) {

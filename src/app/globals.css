@@ -101,24 +101,28 @@ body {
 /* Surlignage déclenché par un clic sur un conseil SEO */
 @keyframes seoHighlightPulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.5);
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.6), 0 0 0 3px var(--brand);
   }
   70% {
-    box-shadow: 0 0 0 6px rgba(79, 70, 229, 0);
+    box-shadow: 0 0 0 12px rgba(79, 70, 229, 0), 0 0 0 3px var(--brand);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0), 0 0 0 3px var(--brand);
   }
 }
 .block-highlight {
-  animation: seoHighlightPulse 1.2s ease-out 2;
-  box-shadow: 0 0 0 2px var(--brand);
+  animation: seoHighlightPulse 1.4s ease-out 3;
+  box-shadow: 0 0 0 3px var(--brand);
+  border-radius: 0.75rem;
+  position: relative;
+  z-index: 1;
 }
 .field-highlight {
-  animation: seoHighlightPulse 1.2s ease-out 2;
-  box-shadow: 0 0 0 2px var(--brand);
+  animation: seoHighlightPulse 1.4s ease-out 3;
+  box-shadow: 0 0 0 3px var(--brand);
   padding: 0.5rem;
   margin: -0.5rem;
+  border-radius: 0.5rem;
 }
 
 /* Éditeur contenteditable */
