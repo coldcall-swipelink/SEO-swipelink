@@ -2,6 +2,7 @@
 
 import { Article } from "@/lib/types";
 import { slugify } from "@/lib/slug";
+import { ImageUploader } from "./ImageUploader";
 
 interface Props {
   article: Article;
@@ -89,11 +90,10 @@ export function SettingsPanel({ article, onPatch }: Props) {
       </Field>
 
       <Field label="Image de couverture" hint="Affichée en haut de l'article.">
-        <input
+        <ImageUploader
           value={article.coverImage}
-          onChange={(e) => onPatch({ coverImage: e.target.value })}
-          placeholder="URL de l'image"
-          className="input"
+          onUploaded={(url) => onPatch({ coverImage: url })}
+          compact
         />
       </Field>
 

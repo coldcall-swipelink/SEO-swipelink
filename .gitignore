@@ -29,3 +29,7 @@ next-env.d.ts
 
 # local data store (généré à l'exécution)
 /data/*.json
+
+# uploads d'images en développement (en prod : Vercel Blob)
+/public/uploads/*
+!/public/uploads/.gitkeep

@@ -3,6 +3,7 @@
 import { Block, FaqItem } from "@/lib/types";
 import { uniqueId } from "@/lib/slug";
 import { RichText } from "./RichText";
+import { ImageUploader } from "./ImageUploader";
 
 interface Props {
   block: Block;
@@ -101,12 +102,21 @@ function BlockFields({
     case "image":
       return (
         <div className="space-y-2">
-          <input
+          <ImageUploader
             value={block.src}
-            onChange={(e) => onChange({ ...block, src: e.target.value })}
-            placeholder="URL de l'image (https://…)"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand"
+            onUploaded={(url) => onChange({ ...block, src: url })}
           />
+          <details className="text-sm">
+            <summary className="cursor-pointer text-gray-400 hover:text-gray-600">
+              ou coller une URL d'image externe
+            </summary>
+            <input
+              value={block.src}
+              onChange={(e) => onChange({ ...block, src: e.target.value })}
+              placeholder="https://…"
+              className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+          </details>
           <input
             value={block.alt}
             onChange={(e) => onChange({ ...block, alt: e.target.value })}
@@ -121,14 +131,6 @@ function BlockFields({
             placeholder="Légende (optionnelle)"
             className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand"
           />
-          {block.src && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={block.src}
-              alt={block.alt}
-              className="mt-2 max-h-48 rounded-lg object-cover"
-            />
-          )}
         </div>
       );
 
