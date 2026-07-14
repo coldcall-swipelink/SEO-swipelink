@@ -438,3 +438,110 @@ export function analyzeSeo(article: Article): SeoReport {
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Localisation d'un conseil : quels blocs / champ modifier pour le corriger.
+// ---------------------------------------------------------------------------
+
+export type SettingsField =
+  | "metaTitle"
+  | "metaDescription"
+  | "slug"
+  | "focusKeyword"
+  | "coverImage";
+
+export interface CheckTarget {
+  blockIds: string[]; // blocs à surligner dans l'éditeur
+  field: SettingsField | null; // champ métadonnée à surligner
+  addBlock: boolean; // suggère d'ajouter un bloc (surligne le bouton +)
+}
+
+function hasLongSentence(html: string): boolean {
+  const sentences = stripHtml(html)
+    .split(/[.!?]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return sentences.some((s) => countWords(s) > 25);
+}
+
+export function checkTargets(article: Article, checkId: string): CheckTarget {
+  const blocks = article.blocks;
+  const base = (o: Partial<CheckTarget>): CheckTarget => ({
+    blockIds: [],
+    field: null,
+    addBlock: false,
+    ...o,
+  });
+
+  const paras = blocks.filter(
+    (b): b is Extract<Block, { type: "paragraph" }> => b.type === "paragraph"
+  );
+  const paraIds = paras.map((p) => p.id);
+  const headingBlocks = blocks.filter((b) => b.type === "heading");
+  const imageBlocks = blocks.filter(
+    (b): b is Extract<Block, { type: "image" }> => b.type === "image"
+  );
+
+  switch (checkId) {
+    case "meta-title":
+    case "kw-title":
+      return base({ field: "metaTitle" });
+    case "meta-description":
+    case "kw-desc":
+      return base({ field: "metaDescription" });
+    case "slug":
+    case "kw-slug":
+      return base({ field: "slug" });
+    case "kw-missing":
+      return base({ field: "focusKeyword" });
+    case "kw-density":
+      return paras.length
+        ? base({ blockIds: paraIds, field: "focusKeyword" })
+        : base({ field: "focusKeyword", addBlock: true });
+    case "kw-intro":
+      return paras.length ? base({ blockIds: [paras[0].id] }) : base({ addBlock: true });
+    case "kw-heading":
+      return headingBlocks.length
+        ? base({ blockIds: headingBlocks.map((b) => b.id) })
+        : paras.length
+        ? base({ blockIds: paraIds })
+        : base({ addBlock: true });
+    case "content-length":
+      return base({ addBlock: true });
+    case "headings":
+      return headingBlocks.length
+        ? base({ blockIds: headingBlocks.map((b) => b.id) })
+        : base({ addBlock: true });
+    case "faq": {
+      const faq = blocks.filter((b) => b.type === "faq");
+      return faq.length ? base({ blockIds: faq.map((b) => b.id) }) : base({ addBlock: true });
+    }
+    case "sentence-length": {
+      const ids = paras.filter((p) => hasLongSentence(p.html)).map((p) => p.id);
+      return base({ blockIds: ids.length ? ids : paraIds });
+    }
+    case "paragraph-length": {
+      const ids = paras
+        .filter((p) => countWords(stripHtml(p.html)) > 150)
+        .map((p) => p.id);
+      return base({ blockIds: ids.length ? ids : paraIds });
+    }
+    case "internal-links":
+    case "external-links":
+      return paras.length ? base({ blockIds: paraIds }) : base({ addBlock: true });
+    case "images":
+      return imageBlocks.length
+        ? base({ blockIds: imageBlocks.map((b) => b.id) })
+        : base({ addBlock: true });
+    case "image-alt": {
+      const missing = imageBlocks.filter((b) => !b.alt.trim()).map((b) => b.id);
+      return base({
+        blockIds: missing.length ? missing : imageBlocks.map((b) => b.id),
+      });
+    }
+    case "og-image":
+      return base({ field: "coverImage" });
+    default:
+      return base({});
+  }
+}

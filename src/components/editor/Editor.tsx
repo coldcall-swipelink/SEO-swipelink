@@ -12,6 +12,7 @@ import {
   defaultButtonStyle,
 } from "@/lib/types";
 import { uniqueId, slugify } from "@/lib/slug";
+import { checkTargets, SeoCheck } from "@/lib/seo";
 import { BlockEditor } from "./BlockEditor";
 import { SeoPanel, GooglePreview } from "./SeoPanel";
 import { SettingsPanel } from "./SettingsPanel";
@@ -40,7 +41,11 @@ export function Editor({ id }: { id: string }) {
   const [publishing, setPublishing] = useState(false);
   // Référence de la version publiée, pour détecter les modifications non publiées.
   const [baseline, setBaseline] = useState<PublishedContent | null>(null);
+  // Surlignage déclenché depuis l'analyse SEO (blocs + champ de réglages).
+  const [highlightIds, setHighlightIds] = useState<string[]>([]);
+  const [highlightField, setHighlightField] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modifications du brouillon non encore répercutées sur la version en ligne.
   const hasUnpublishedChanges =
@@ -175,6 +180,45 @@ export function Editor({ id }: { id: string }) {
     window.open(`/preview/${id}`, "_blank");
   }
 
+  // Localise un conseil SEO : surligne les blocs / le champ à corriger.
+  function focusCheck(check: SeoCheck) {
+    if (!article) return;
+    const target = checkTargets(article, check.id);
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+
+    const scrollTo = (elId: string) =>
+      requestAnimationFrame(() => {
+        document
+          .getElementById(elId)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+
+    if (target.field) {
+      setTab("settings");
+      setHighlightField(target.field);
+      setHighlightIds([]);
+      // laisse le temps à l'onglet Réglages de se monter avant de scroller
+      setTimeout(() => {
+        document
+          .querySelector(`[data-field="${target.field}"]`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 80);
+    } else if (target.blockIds.length) {
+      setHighlightIds(target.blockIds);
+      setHighlightField(null);
+      scrollTo(`block-${target.blockIds[0]}`);
+    } else if (target.addBlock) {
+      setHighlightIds(["__add__"]);
+      setHighlightField(null);
+      scrollTo("add-block-btn");
+    }
+
+    highlightTimer.current = setTimeout(() => {
+      setHighlightIds([]);
+      setHighlightField(null);
+    }, 3200);
+  }
+
   if (notFound) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -290,6 +334,7 @@ export function Editor({ id }: { id: string }) {
                 onMoveDown={() => moveBlock(i, 1)}
                 isFirst={i === 0}
                 isLast={i === article.blocks.length - 1}
+                highlighted={highlightIds.includes(block.id)}
               />
             ))}
           </div>
@@ -297,8 +342,13 @@ export function Editor({ id }: { id: string }) {
           {/* Ajout de bloc */}
           <div className="relative mt-4">
             <button
+              id="add-block-btn"
               onClick={() => setShowMenu((v) => !v)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 py-4 text-gray-500 transition hover:border-brand hover:text-brand"
+              className={`flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed py-4 text-gray-500 transition hover:border-brand hover:text-brand ${
+                highlightIds.includes("__add__")
+                  ? "block-highlight border-brand text-brand"
+                  : "border-gray-200"
+              }`}
             >
               <span className="text-xl">+</span> Ajouter un bloc
             </button>
@@ -335,10 +385,14 @@ export function Editor({ id }: { id: string }) {
           </div>
 
           {tab === "seo" ? (
-            <SeoPanel article={article} />
+            <SeoPanel article={article} onFocusCheck={focusCheck} />
           ) : (
             <div className="rounded-xl border border-gray-100 bg-white p-4">
-              <SettingsPanel article={article} onPatch={update} />
+              <SettingsPanel
+                article={article}
+                onPatch={update}
+                highlightField={highlightField}
+              />
             </div>
           )}
         </aside>

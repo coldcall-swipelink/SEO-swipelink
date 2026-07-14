@@ -26,7 +26,13 @@ const STATUS_ICON: Record<CheckStatus, string> = {
   bad: "●",
 };
 
-export function SeoPanel({ article }: { article: Article }) {
+export function SeoPanel({
+  article,
+  onFocusCheck,
+}: {
+  article: Article;
+  onFocusCheck?: (check: SeoCheck) => void;
+}) {
   const report = useMemo(() => analyzeSeo(article), [article]);
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     new Set(["base", "keyword"])
@@ -112,21 +118,40 @@ export function SeoPanel({ article }: { article: Article }) {
               </button>
               {isOpen && (
                 <ul className="divide-y divide-gray-50 border-t border-gray-50">
-                  {checks.map((check) => (
-                    <li key={check.id} className="flex gap-3 px-4 py-2.5">
-                      <span className={`mt-0.5 text-xs ${STATUS_COLOR[check.status]}`}>
-                        {STATUS_ICON[check.status]}
-                      </span>
-                      <div>
-                        <div className="text-sm font-medium text-gray-800">
-                          {check.label}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {check.message}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
+                  {checks.map((check) => {
+                    const actionable = check.status !== "good" && !!onFocusCheck;
+                    return (
+                      <li key={check.id}>
+                        <button
+                          type="button"
+                          disabled={!actionable}
+                          onClick={() => onFocusCheck?.(check)}
+                          className={`flex w-full gap-3 px-4 py-2.5 text-left transition ${
+                            actionable
+                              ? "cursor-pointer hover:bg-indigo-50/60"
+                              : "cursor-default"
+                          }`}
+                        >
+                          <span className={`mt-0.5 text-xs ${STATUS_COLOR[check.status]}`}>
+                            {STATUS_ICON[check.status]}
+                          </span>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+                              {check.label}
+                              {actionable && (
+                                <span className="text-xs font-normal text-brand">
+                                  · localiser →
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {check.message}
+                            </div>
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

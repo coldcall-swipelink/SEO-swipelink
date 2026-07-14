@@ -1,5 +1,6 @@
 "use client";
 
+import { createContext, useContext } from "react";
 import { Article } from "@/lib/types";
 import { slugify } from "@/lib/slug";
 import { ImageUploader } from "./ImageUploader";
@@ -7,16 +8,25 @@ import { ImageUploader } from "./ImageUploader";
 interface Props {
   article: Article;
   onPatch: (patch: Partial<Article>) => void;
+  highlightField?: string | null;
 }
 
-export function SettingsPanel({ article, onPatch }: Props) {
+// Champ actuellement surligné (déclenché depuis l'analyse SEO).
+const HighlightCtx = createContext<string | null>(null);
+
+export function SettingsPanel({ article, onPatch, highlightField }: Props) {
   function patchSeo(patch: Partial<Article["seo"]>) {
     onPatch({ seo: { ...article.seo, ...patch } });
   }
 
   return (
+    <HighlightCtx.Provider value={highlightField ?? null}>
     <div className="space-y-5">
-      <Field label="Mot-clé principal" hint="Le terme que vous ciblez sur Google.">
+      <Field
+        name="focusKeyword"
+        label="Mot-clé principal"
+        hint="Le terme que vous ciblez sur Google."
+      >
         <input
           value={article.seo.focusKeyword}
           onChange={(e) => patchSeo({ focusKeyword: e.target.value })}
@@ -26,6 +36,7 @@ export function SettingsPanel({ article, onPatch }: Props) {
       </Field>
 
       <Field
+        name="metaTitle"
         label="Balise title"
         hint="Titre affiché dans les résultats Google."
         counter={{ value: article.seo.metaTitle.length, min: 30, max: 60 }}
@@ -39,6 +50,7 @@ export function SettingsPanel({ article, onPatch }: Props) {
       </Field>
 
       <Field
+        name="metaDescription"
         label="Méta description"
         hint="Résumé incitatif sous le titre dans Google."
         counter={{ value: article.seo.metaDescription.length, min: 120, max: 160 }}
@@ -52,7 +64,7 @@ export function SettingsPanel({ article, onPatch }: Props) {
         />
       </Field>
 
-      <Field label="Slug d'URL" hint="Partie de l'URL après /blog/.">
+      <Field name="slug" label="Slug d'URL" hint="Partie de l'URL après /blog/.">
         <div className="flex gap-2">
           <input
             value={article.slug}
@@ -89,7 +101,11 @@ export function SettingsPanel({ article, onPatch }: Props) {
         />
       </Field>
 
-      <Field label="Image de couverture" hint="Affichée en haut de l'article.">
+      <Field
+        name="coverImage"
+        label="Image de couverture"
+        hint="Affichée en haut de l'article."
+      >
         <ImageUploader
           value={article.coverImage}
           onUploaded={(url) => onPatch({ coverImage: url })}
@@ -150,6 +166,7 @@ export function SettingsPanel({ article, onPatch }: Props) {
         }
       `}</style>
     </div>
+    </HighlightCtx.Provider>
   );
 }
 
@@ -157,13 +174,16 @@ function Field({
   label,
   hint,
   counter,
+  name,
   children,
 }: {
   label: string;
   hint?: string;
   counter?: { value: number; min: number; max: number };
+  name?: string;
   children: React.ReactNode;
 }) {
+  const active = useContext(HighlightCtx) === name && !!name;
   const color = counter
     ? counter.value >= counter.min && counter.value <= counter.max
       ? "text-green-600"
@@ -172,7 +192,10 @@ function Field({
       : "text-amber-500"
     : "";
   return (
-    <div>
+    <div
+      data-field={name}
+      className={active ? "field-highlight rounded-lg" : undefined}
+    >
       <div className="mb-1 flex items-center justify-between">
         <label className="text-sm font-semibold text-gray-800">{label}</label>
         {counter && (

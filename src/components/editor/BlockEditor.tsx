@@ -14,6 +14,7 @@ interface Props {
   onMoveDown: () => void;
   isFirst: boolean;
   isLast: boolean;
+  highlighted?: boolean;
 }
 
 const TYPE_LABELS: Record<Block["type"], string> = {
@@ -36,9 +37,17 @@ export function BlockEditor({
   onMoveDown,
   isFirst,
   isLast,
+  highlighted,
 }: Props) {
   return (
-    <div className="group relative rounded-xl border border-gray-200 bg-white p-4 transition hover:border-gray-300">
+    <div
+      id={`block-${block.id}`}
+      className={`group relative rounded-xl border bg-white p-4 transition ${
+        highlighted
+          ? "block-highlight border-brand"
+          : "border-gray-200 hover:border-gray-300"
+      }`}
+    >
       <div className="mb-3 flex items-center justify-between">
         <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
           {TYPE_LABELS[block.type]}
