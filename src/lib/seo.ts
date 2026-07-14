@@ -74,6 +74,29 @@ export function extractText(blocks: Block[]): string {
   return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 
+export interface ExtractedHeading {
+  level: number;
+  text: string;
+}
+
+// Collecte les sous-titres, qu'ils viennent d'un bloc « Titre » dédié
+// ou d'un titre inséré dans un bloc de texte enrichi (<h2>..<h4>).
+export function extractHeadings(blocks: Block[]): ExtractedHeading[] {
+  const result: ExtractedHeading[] = [];
+  for (const b of blocks) {
+    if (b.type === "heading") {
+      result.push({ level: b.level, text: b.text });
+    } else if (b.type === "paragraph") {
+      const re = /<(h[2-4])\b[^>]*>([\s\S]*?)<\/\1>/gi;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(b.html)) !== null) {
+        result.push({ level: Number(m[1][1]), text: stripHtml(m[2]) });
+      }
+    }
+  }
+  return result;
+}
+
 function countWords(text: string): number {
   if (!text) return 0;
   return text.split(/\s+/).filter(Boolean).length;
@@ -136,7 +159,7 @@ export function analyzeSeo(article: Article): SeoReport {
   const words = countWords(text);
   const readingTimeMin = Math.max(1, Math.round(words / 200));
 
-  const headings = article.blocks.filter((b) => b.type === "heading");
+  const headings = extractHeadings(article.blocks);
   const images = article.blocks.filter((b) => b.type === "image") as Extract<
     Block,
     { type: "image" }
@@ -239,7 +262,7 @@ export function analyzeSeo(article: Article): SeoReport {
     });
 
     const inHeading = headings.some((h) =>
-      h.type === "heading" ? h.text.toLowerCase().includes(keyword) : false
+      h.text.toLowerCase().includes(keyword)
     );
     checks.push({
       id: "kw-heading",

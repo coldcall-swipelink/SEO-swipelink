@@ -91,3 +91,51 @@ body {
   color: var(--brand);
   text-decoration: underline;
 }
+/* WYSIWYG : les titres et listes ressemblent au rendu final pendant l'édition */
+.rt-editor h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.6em 0 0.3em;
+  line-height: 1.25;
+}
+.rt-editor h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.5em 0 0.3em;
+}
+.rt-editor h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0.5em 0 0.3em;
+}
+.rt-editor ul {
+  list-style: disc;
+  padding-left: 1.4em;
+  margin: 0.5em 0;
+}
+.rt-editor ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+  margin: 0.5em 0;
+}
+
+/* Contenu enrichi rendu publiquement (peut contenir titres/listes/couleurs) */
+.prose-article .rt-content h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 1.8em 0 0.6em;
+  line-height: 1.25;
+}
+.prose-article .rt-content h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 1.5em 0 0.5em;
+}
+.prose-article .rt-content h4 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1.3em 0 0.5em;
+}
+.prose-article .rt-content > div {
+  margin: 1.1em 0;
+}

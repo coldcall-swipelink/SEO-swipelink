@@ -18,7 +18,14 @@ function BlockView({ block }: { block: Block }) {
       return <Tag id={slugAnchor(block.text)}>{block.text}</Tag>;
     }
     case "paragraph":
-      return <p dangerouslySetInnerHTML={{ __html: block.html }} />;
+      // rendu dans un div : le contenu enrichi peut contenir titres/listes,
+      // qui ne peuvent pas être imbriqués dans un <p>.
+      return (
+        <div
+          className="rt-content"
+          dangerouslySetInnerHTML={{ __html: block.html }}
+        />
+      );
     case "image":
       return (
         <figure className="my-8">
