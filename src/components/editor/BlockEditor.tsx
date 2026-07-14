@@ -299,9 +299,15 @@ function BlockFields({
             Style du bouton
           </div>
           <ButtonStyler
-            style={block.buttonStyle ?? defaultButtonStyle({ align: "center" })}
-            onChange={(buttonStyle) => onChange({ ...block, buttonStyle })}
+            style={{
+              ...(block.buttonStyle ?? defaultButtonStyle()),
+              align: "center",
+            }}
+            onChange={(buttonStyle) =>
+              onChange({ ...block, buttonStyle: { ...buttonStyle, align: "center" } })
+            }
             previewLabel={block.buttonLabel}
+            lockAlign
           />
         </div>
       );

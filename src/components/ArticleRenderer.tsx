@@ -92,7 +92,11 @@ function BlockView({ block }: { block: Block }) {
           <h3 className="mb-2 text-xl font-bold text-gray-900">{block.title}</h3>
           <p className="mb-4 text-gray-600">{block.text}</p>
           <StyledButton
-            style={block.buttonStyle ?? defaultButtonStyle({ align: "center" })}
+            // Un CTA est un encart centré : le bouton est toujours centré.
+            style={{
+              ...(block.buttonStyle ?? defaultButtonStyle()),
+              align: "center",
+            }}
             label={block.buttonLabel}
             url={block.buttonUrl}
             newTab={block.buttonNewTab}

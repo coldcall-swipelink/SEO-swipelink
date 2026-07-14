@@ -7,6 +7,8 @@ interface Props {
   style: ButtonStyle;
   onChange: (style: ButtonStyle) => void;
   previewLabel: string;
+  // Masque le contrôle d'alignement (ex. bouton de CTA, toujours centré).
+  lockAlign?: boolean;
 }
 
 const PRESET_COLORS = [
@@ -15,7 +17,12 @@ const PRESET_COLORS = [
   "#64748b", "#ffffff",
 ];
 
-export function ButtonStyler({ style, onChange, previewLabel }: Props) {
+export function ButtonStyler({
+  style,
+  onChange,
+  previewLabel,
+  lockAlign,
+}: Props) {
   function set<K extends keyof ButtonStyle>(key: K, value: ButtonStyle[K]) {
     onChange({ ...style, [key]: value });
   }
@@ -87,17 +94,19 @@ export function ButtonStyler({ style, onChange, previewLabel }: Props) {
       </Row>
 
       {/* Alignement */}
-      <Row label="Alignement">
-        <Segmented
-          value={style.align}
-          options={[
-            { value: "left", label: "Gauche" },
-            { value: "center", label: "Centre" },
-            { value: "right", label: "Droite" },
-          ]}
-          onChange={(v) => set("align", v as ButtonStyle["align"])}
-        />
-      </Row>
+      {!lockAlign && (
+        <Row label="Alignement">
+          <Segmented
+            value={style.align}
+            options={[
+              { value: "left", label: "Gauche" },
+              { value: "center", label: "Centre" },
+              { value: "right", label: "Droite" },
+            ]}
+            onChange={(v) => set("align", v as ButtonStyle["align"])}
+          />
+        </Row>
+      )}
 
       {/* Pleine largeur */}
       <label className="flex items-center gap-2 text-sm text-gray-600">
