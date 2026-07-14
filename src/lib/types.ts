@@ -157,9 +157,20 @@ export interface Article {
   // --- Statut & version publiée ---
   status: ArticleStatus;
   published: PublishedContent | null; // instantané visible publiquement
+  // --- Classement ---
+  categoryId?: string | null;
+  isTemplate?: boolean; // true = article modèle d'une catégorie (non public)
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
+}
+
+// Catégorie d'article, avec son template (article modèle).
+export interface Category {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export function emptyArticle(id: string, now: string): Article {
@@ -181,6 +192,8 @@ export function emptyArticle(id: string, now: string): Article {
     },
     status: "draft",
     published: null,
+    categoryId: null,
+    isTemplate: false,
     createdAt: now,
     updatedAt: now,
     publishedAt: null,
@@ -209,4 +222,20 @@ export function toPublicView(a: Article): Article {
 
 export function contentEquals(a: PublishedContent, b: PublishedContent): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+// Duplique une liste de blocs en régénérant les identifiants (blocs + items FAQ),
+// pour éviter toute collision de clés lors d'une création depuis un template.
+export function cloneBlocksWithNewIds(
+  blocks: Block[],
+  newId: (prefix: string) => string
+): Block[] {
+  return blocks.map((b) => {
+    const clone = JSON.parse(JSON.stringify(b)) as Block;
+    clone.id = newId("blk_");
+    if (clone.type === "faq") {
+      clone.items = clone.items.map((it) => ({ ...it, id: newId("faq_") }));
+    }
+    return clone;
+  });
 }

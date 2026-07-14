@@ -9,4 +9,6 @@ export interface ArticleStore {
   createArticle(article: Article): Promise<Article>;
   updateArticle(id: string, patch: Partial<Article>): Promise<Article | null>;
   deleteArticle(id: string): Promise<boolean>;
+  // Article modèle (template) d'une catégorie.
+  findTemplate(categoryId: string): Promise<Article | null>;
 }

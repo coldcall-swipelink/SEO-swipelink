@@ -6,6 +6,7 @@ import {
   Article,
   Block,
   BlockType,
+  Category,
   PublishedContent,
   contentSnapshot,
   contentEquals,
@@ -41,6 +42,7 @@ export function Editor({ id }: { id: string }) {
   const [showMenu, setShowMenu] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [serpOpen, setSerpOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   // Référence de la version publiée, pour détecter les modifications non publiées.
   const [baseline, setBaseline] = useState<PublishedContent | null>(null);
   // Surlignage déclenché depuis l'analyse SEO (blocs + champ de réglages).
@@ -71,6 +73,10 @@ export function Editor({ id }: { id: string }) {
           setBaseline(data.published ?? contentSnapshot(data));
         }
       });
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((c: Category[]) => setCategories(c))
+      .catch(() => setCategories([]));
   }, [id]);
 
   // Autosave : n'envoie QUE les champs du brouillon (jamais le statut ni
@@ -86,6 +92,7 @@ export function Editor({ id }: { id: string }) {
         author: next.author,
         blocks: next.blocks,
         seo: next.seo,
+        categoryId: next.categoryId ?? null,
       };
       const res = await fetch(`/api/articles/${next.id}`, {
         method: "PUT",
@@ -242,6 +249,10 @@ export function Editor({ id }: { id: string }) {
     );
   }
 
+  const categoryLabel = categories.find(
+    (c) => c.id === article.categoryId
+  )?.name;
+
   return (
     <div className="min-h-screen bg-gray-50 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
       {/* Barre supérieure */}
@@ -252,70 +263,95 @@ export function Editor({ id }: { id: string }) {
               ← Tableau de bord
             </Link>
             <SaveIndicator state={saveState} />
-            {article.status === "published" && hasUnpublishedChanges && (
-              <span className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                Modifications non publiées
+            {article.isTemplate && (
+              <span className="flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-brand">
+                🧩 Template{categoryLabel ? ` · ${categoryLabel}` : ""}
               </span>
             )}
+            {!article.isTemplate &&
+              article.status === "published" &&
+              hasUnpublishedChanges && (
+                <span className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  Modifications non publiées
+                </span>
+              )}
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSerpOpen(true)}
-              title="Voir les 5 premiers résultats Google pour le mot-clé"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-            >
-              🔍 Concurrence
-            </button>
-            <button
-              onClick={preview}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-            >
-              👁️ Aperçu
-            </button>
 
-            {article.status === "published" && article.published && (
+          {article.isTemplate ? (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={preview}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                👁️ Aperçu
+              </button>
               <Link
-                href={`/blog/${article.published.slug}`}
-                target="_blank"
-                className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                href="/categories"
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark"
               >
-                Voir en ligne ↗
+                Terminer
               </Link>
-            )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSerpOpen(true)}
+                title="Voir les 5 premiers résultats Google pour le mot-clé"
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                🔍 Concurrence
+              </button>
+              <button
+                onClick={preview}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                👁️ Aperçu
+              </button>
 
-            {article.status === "published" && (
-              <button
-                onClick={unpublish}
-                disabled={publishing}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100 disabled:opacity-50"
-              >
-                Dépublier
-              </button>
-            )}
+              {article.status === "published" && article.published && (
+                <Link
+                  href={`/blog/${article.published.slug}`}
+                  target="_blank"
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                >
+                  Voir en ligne ↗
+                </Link>
+              )}
 
-            {article.status === "published" ? (
-              <button
-                onClick={publish}
-                disabled={publishing || !hasUnpublishedChanges}
-                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {publishing
-                  ? "Publication…"
-                  : hasUnpublishedChanges
-                  ? "Mettre à jour et publier"
-                  : "À jour ✓"}
-              </button>
-            ) : (
-              <button
-                onClick={publish}
-                disabled={publishing}
-                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-50"
-              >
-                {publishing ? "Publication…" : "Publier"}
-              </button>
-            )}
-          </div>
+              {article.status === "published" && (
+                <button
+                  onClick={unpublish}
+                  disabled={publishing}
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Dépublier
+                </button>
+              )}
+
+              {article.status === "published" ? (
+                <button
+                  onClick={publish}
+                  disabled={publishing || !hasUnpublishedChanges}
+                  className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {publishing
+                    ? "Publication…"
+                    : hasUnpublishedChanges
+                    ? "Mettre à jour et publier"
+                    : "À jour ✓"}
+                </button>
+              ) : (
+                <button
+                  onClick={publish}
+                  disabled={publishing}
+                  className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-50"
+                >
+                  {publishing ? "Publication…" : "Publier"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -401,6 +437,7 @@ export function Editor({ id }: { id: string }) {
                 article={article}
                 onPatch={update}
                 highlightField={highlightField}
+                categories={categories}
               />
             </div>
           )}

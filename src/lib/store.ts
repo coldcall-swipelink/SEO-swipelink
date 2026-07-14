@@ -20,3 +20,4 @@ export const getPublishedArticles = store.getPublishedArticles.bind(store);
 export const createArticle = store.createArticle.bind(store);
 export const updateArticle = store.updateArticle.bind(store);
 export const deleteArticle = store.deleteArticle.bind(store);
+export const findTemplate = store.findTemplate.bind(store);

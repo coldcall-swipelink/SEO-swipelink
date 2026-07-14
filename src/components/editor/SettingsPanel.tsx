@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { Article } from "@/lib/types";
+import { Article, Category } from "@/lib/types";
 import { slugify } from "@/lib/slug";
 import { ImageUploader } from "./ImageUploader";
 
@@ -9,12 +9,18 @@ interface Props {
   article: Article;
   onPatch: (patch: Partial<Article>) => void;
   highlightField?: string | null;
+  categories?: Category[];
 }
 
 // Champ actuellement surligné (déclenché depuis l'analyse SEO).
 const HighlightCtx = createContext<string | null>(null);
 
-export function SettingsPanel({ article, onPatch, highlightField }: Props) {
+export function SettingsPanel({
+  article,
+  onPatch,
+  highlightField,
+  categories = [],
+}: Props) {
   function patchSeo(patch: Partial<Article["seo"]>) {
     onPatch({ seo: { ...article.seo, ...patch } });
   }
@@ -22,6 +28,23 @@ export function SettingsPanel({ article, onPatch, highlightField }: Props) {
   return (
     <HighlightCtx.Provider value={highlightField ?? null}>
     <div className="space-y-5">
+      {!article.isTemplate && (
+        <Field label="Catégorie" hint="Classe l'article et permet d'utiliser un template.">
+          <select
+            value={article.categoryId ?? ""}
+            onChange={(e) => onPatch({ categoryId: e.target.value || null })}
+            className="input"
+          >
+            <option value="">Aucune catégorie</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+
       <Field
         name="focusKeyword"
         label="Mot-clé principal"

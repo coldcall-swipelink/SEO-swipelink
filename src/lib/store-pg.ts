@@ -54,7 +54,9 @@ export const pgStore: ArticleStore = {
   async listArticles() {
     await ensureSchema();
     const all = await rows();
-    return all.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return all
+      .filter((a) => !a.isTemplate)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   },
 
   async getArticle(id) {
@@ -81,6 +83,7 @@ export const pgStore: ArticleStore = {
     const result = await sql<{ data: Article }[]>`
       SELECT data FROM articles
       WHERE data->>'status' = 'published'
+        AND COALESCE(data->>'isTemplate', 'false') <> 'true'
       ORDER BY data->>'publishedAt' DESC
     `;
     return result.map((r) => r.data);
@@ -119,5 +122,17 @@ export const pgStore: ArticleStore = {
     const sql = getSql();
     const result = await sql`DELETE FROM articles WHERE id = ${id}`;
     return result.count > 0;
+  },
+
+  async findTemplate(categoryId) {
+    await ensureSchema();
+    const sql = getSql();
+    const result = await sql<{ data: Article }[]>`
+      SELECT data FROM articles
+      WHERE COALESCE(data->>'isTemplate', 'false') = 'true'
+        AND data->>'categoryId' = ${categoryId}
+      LIMIT 1
+    `;
+    return result[0]?.data ?? null;
   },
 };

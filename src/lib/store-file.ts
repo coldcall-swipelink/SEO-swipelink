@@ -38,7 +38,9 @@ async function writeAll(articles: Article[]): Promise<void> {
 export const fileStore: ArticleStore = {
   async listArticles() {
     const articles = await readAll();
-    return articles.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return articles
+      .filter((a) => !a.isTemplate)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   },
   async getArticle(id) {
     const articles = await readAll();
@@ -51,7 +53,7 @@ export const fileStore: ArticleStore = {
   async getPublishedArticles() {
     const articles = await readAll();
     return articles
-      .filter((a) => a.status === "published")
+      .filter((a) => a.status === "published" && !a.isTemplate)
       .sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""));
   },
   async createArticle(article) {
@@ -80,5 +82,11 @@ export const fileStore: ArticleStore = {
     if (next.length === articles.length) return false;
     await writeAll(next);
     return true;
+  },
+  async findTemplate(categoryId) {
+    const articles = await readAll();
+    return (
+      articles.find((a) => a.isTemplate && a.categoryId === categoryId) ?? null
+    );
   },
 };
