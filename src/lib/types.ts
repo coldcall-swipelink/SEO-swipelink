@@ -6,9 +6,36 @@ export type BlockType =
   | "image"
   | "faq"
   | "cta"
+  | "button"
   | "quote"
   | "list"
   | "code";
+
+// Style d'un bouton, entièrement personnalisable.
+export interface ButtonStyle {
+  bgColor: string; // couleur de fond (hex)
+  textColor: string; // couleur du texte (hex)
+  variant: "solid" | "outline";
+  size: "sm" | "md" | "lg";
+  radius: "none" | "sm" | "md" | "full";
+  align: "left" | "center" | "right";
+  fullWidth: boolean;
+}
+
+export function defaultButtonStyle(
+  overrides: Partial<ButtonStyle> = {}
+): ButtonStyle {
+  return {
+    bgColor: "#4f46e5",
+    textColor: "#ffffff",
+    variant: "solid",
+    size: "md",
+    radius: "md",
+    align: "left",
+    fullWidth: false,
+    ...overrides,
+  };
+}
 
 export interface BaseBlock {
   id: string;
@@ -52,6 +79,16 @@ export interface CtaBlock extends BaseBlock {
   text: string;
   buttonLabel: string;
   buttonUrl: string;
+  buttonNewTab?: boolean;
+  buttonStyle?: ButtonStyle; // optionnel : défaut appliqué si absent
+}
+
+export interface ButtonBlock extends BaseBlock {
+  type: "button";
+  label: string;
+  url: string;
+  newTab: boolean;
+  style: ButtonStyle;
 }
 
 export interface QuoteBlock extends BaseBlock {
@@ -78,6 +115,7 @@ export type Block =
   | ImageBlock
   | FaqBlock
   | CtaBlock
+  | ButtonBlock
   | QuoteBlock
   | ListBlock
   | CodeBlock;

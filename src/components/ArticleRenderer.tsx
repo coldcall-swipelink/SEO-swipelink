@@ -1,5 +1,6 @@
 // Rendu HTML sémantique des blocs d'un article (composant serveur).
-import { Block } from "@/lib/types";
+import { Block, defaultButtonStyle } from "@/lib/types";
+import { StyledButton } from "./StyledButton";
 
 export function ArticleRenderer({ blocks }: { blocks: Block[] }) {
   return (
@@ -74,17 +75,28 @@ function BlockView({ block }: { block: Block }) {
           <code>{block.code}</code>
         </pre>
       );
+    case "button":
+      return (
+        <div className="my-6">
+          <StyledButton
+            style={block.style}
+            label={block.label}
+            url={block.url}
+            newTab={block.newTab}
+          />
+        </div>
+      );
     case "cta":
       return (
         <div className="my-8 rounded-2xl border border-indigo-100 bg-indigo-50 p-6 text-center">
           <h3 className="mb-2 text-xl font-bold text-gray-900">{block.title}</h3>
           <p className="mb-4 text-gray-600">{block.text}</p>
-          <a
-            href={block.buttonUrl}
-            className="inline-block rounded-lg bg-brand px-5 py-2.5 font-semibold text-white transition hover:bg-brand-dark"
-          >
-            {block.buttonLabel}
-          </a>
+          <StyledButton
+            style={block.buttonStyle ?? defaultButtonStyle({ align: "center" })}
+            label={block.buttonLabel}
+            url={block.buttonUrl}
+            newTab={block.buttonNewTab}
+          />
         </div>
       );
     case "faq":

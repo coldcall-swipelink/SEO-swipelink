@@ -1,9 +1,10 @@
 "use client";
 
-import { Block, FaqItem } from "@/lib/types";
+import { Block, FaqItem, defaultButtonStyle } from "@/lib/types";
 import { uniqueId } from "@/lib/slug";
 import { RichText } from "./RichText";
 import { ImageUploader } from "./ImageUploader";
+import { ButtonStyler } from "./ButtonStyler";
 
 interface Props {
   block: Block;
@@ -21,6 +22,7 @@ const TYPE_LABELS: Record<Block["type"], string> = {
   image: "Image",
   faq: "FAQ",
   cta: "Appel à l'action",
+  button: "Bouton",
   quote: "Citation",
   list: "Liste",
   code: "Code",
@@ -218,6 +220,39 @@ function BlockFields({
         </div>
       );
 
+    case "button":
+      return (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <input
+              value={block.label}
+              onChange={(e) => onChange({ ...block, label: e.target.value })}
+              placeholder="Texte du bouton"
+              className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium outline-none focus:border-brand"
+            />
+            <input
+              value={block.url}
+              onChange={(e) => onChange({ ...block, url: e.target.value })}
+              placeholder="Lien (URL)"
+              className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={block.newTab}
+              onChange={(e) => onChange({ ...block, newTab: e.target.checked })}
+            />
+            Ouvrir dans un nouvel onglet
+          </label>
+          <ButtonStyler
+            style={block.style}
+            onChange={(style) => onChange({ ...block, style })}
+            previewLabel={block.label}
+          />
+        </div>
+      );
+
     case "cta":
       return (
         <div className="space-y-2">
@@ -250,6 +285,24 @@ function BlockFields({
               className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand"
             />
           </div>
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={block.buttonNewTab ?? false}
+              onChange={(e) =>
+                onChange({ ...block, buttonNewTab: e.target.checked })
+              }
+            />
+            Ouvrir dans un nouvel onglet
+          </label>
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Style du bouton
+          </div>
+          <ButtonStyler
+            style={block.buttonStyle ?? defaultButtonStyle({ align: "center" })}
+            onChange={(buttonStyle) => onChange({ ...block, buttonStyle })}
+            previewLabel={block.buttonLabel}
+          />
         </div>
       );
 

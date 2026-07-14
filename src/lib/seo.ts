@@ -122,6 +122,7 @@ function analyzeLinks(blocks: Block[]): LinkInfo {
     const sources: string[] = [];
     if (b.type === "paragraph") sources.push(b.html);
     if (b.type === "cta") sources.push(`<a href="${b.buttonUrl}"></a>`);
+    if (b.type === "button") sources.push(`<a href="${b.url}"></a>`);
     for (const html of sources) {
       let m: RegExpExecArray | null;
       while ((m = hrefRegex.exec(html)) !== null) {

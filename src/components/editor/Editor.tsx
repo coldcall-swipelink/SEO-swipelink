@@ -9,6 +9,7 @@ import {
   PublishedContent,
   contentSnapshot,
   contentEquals,
+  defaultButtonStyle,
 } from "@/lib/types";
 import { uniqueId, slugify } from "@/lib/slug";
 import { BlockEditor } from "./BlockEditor";
@@ -24,7 +25,8 @@ const BLOCK_MENU: { type: BlockType; label: string; icon: string }[] = [
   { type: "image", label: "Image", icon: "🖼️" },
   { type: "list", label: "Liste", icon: "☰" },
   { type: "faq", label: "FAQ", icon: "❓" },
-  { type: "cta", label: "Appel à l'action", icon: "🔘" },
+  { type: "button", label: "Bouton", icon: "🔘" },
+  { type: "cta", label: "Appel à l'action", icon: "📣" },
   { type: "quote", label: "Citation", icon: "❝" },
   { type: "code", label: "Code", icon: "</>" },
 ];
@@ -360,8 +362,26 @@ function newBlock(type: BlockType): Block {
       return { id, type, text: "", cite: "" };
     case "code":
       return { id, type, language: "", code: "" };
+    case "button":
+      return {
+        id,
+        type,
+        label: "Cliquez ici",
+        url: "",
+        newTab: false,
+        style: defaultButtonStyle(),
+      };
     case "cta":
-      return { id, type, title: "", text: "", buttonLabel: "", buttonUrl: "" };
+      return {
+        id,
+        type,
+        title: "",
+        text: "",
+        buttonLabel: "En savoir plus",
+        buttonUrl: "",
+        buttonNewTab: false,
+        buttonStyle: defaultButtonStyle({ align: "center" }),
+      };
     case "faq":
       return {
         id,
