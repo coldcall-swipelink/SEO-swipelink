@@ -16,6 +16,7 @@ import { checkTargets, SeoCheck } from "@/lib/seo";
 import { BlockEditor } from "./BlockEditor";
 import { SeoPanel, GooglePreview } from "./SeoPanel";
 import { SettingsPanel } from "./SettingsPanel";
+import { SerpDrawer } from "./SerpDrawer";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 type Tab = "seo" | "settings";
@@ -39,6 +40,7 @@ export function Editor({ id }: { id: string }) {
   const [tab, setTab] = useState<Tab>("seo");
   const [showMenu, setShowMenu] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [serpOpen, setSerpOpen] = useState(false);
   // Référence de la version publiée, pour détecter les modifications non publiées.
   const [baseline, setBaseline] = useState<PublishedContent | null>(null);
   // Surlignage déclenché depuis l'analyse SEO (blocs + champ de réglages).
@@ -259,6 +261,13 @@ export function Editor({ id }: { id: string }) {
           </div>
           <div className="flex items-center gap-3">
             <button
+              onClick={() => setSerpOpen(true)}
+              title="Voir les 3 premiers résultats Google pour le mot-clé"
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
+              🔍 Concurrence
+            </button>
+            <button
               onClick={preview}
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
             >
@@ -397,6 +406,12 @@ export function Editor({ id }: { id: string }) {
           )}
         </aside>
       </div>
+
+      <SerpDrawer
+        open={serpOpen}
+        keyword={article.seo.focusKeyword}
+        onClose={() => setSerpOpen(false)}
+      />
     </div>
   );
 }

@@ -44,6 +44,14 @@ Postgres — toutes trois compatibles).
 En local, copiez `.env.example` vers `.env` et renseignez `DATABASE_URL` pour
 tester le backend Postgres.
 
+### Aperçu de la concurrence Google (optionnel)
+
+Le bouton **« 🔍 Concurrence »** de l'éditeur affiche les 3 premiers résultats
+Google (hors annonces) pour le mot-clé principal. Cette fonctionnalité utilise
+**SerpApi** : créez une clé (offre gratuite sur [serpapi.com](https://serpapi.com))
+et ajoutez la variable `SERPAPI_KEY`. Sans cette clé, le volet affiche un
+message d'invitation à la configurer.
+
 - `/` — page d'accueil (landing)
 - `/dashboard` — liste et création d'articles
 - `/editor/[id]` — éditeur avec analyse SEO
