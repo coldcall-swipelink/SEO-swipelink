@@ -152,6 +152,76 @@ function longSentenceRatio(text: string): number {
   return long / sentences.length;
 }
 
+// --- Détection de la voix passive (heuristique française) ------------------
+// Approche type Yoast : auxiliaire « être » conjugué suivi d'un participe passé.
+const ETRE_FORMS = new Set([
+  "est", "sont", "suis", "es", "sommes", "êtes",
+  "était", "étaient", "étais", "étions", "étiez",
+  "sera", "seront", "serai", "seras", "serons", "serez",
+  "fut", "furent", "été", "soit", "soient", "étant",
+]);
+
+const IRREGULAR_PP = new Set([
+  "fait", "faits", "faite", "faites", "dit", "dits", "dite", "dites",
+  "mis", "mise", "mises", "pris", "prise", "prises",
+  "écrit", "écrits", "écrite", "écrites", "ouvert", "ouverts", "ouverte", "ouvertes",
+  "offert", "offerts", "offerte", "offertes", "couvert", "couverts",
+  "reçu", "reçus", "reçue", "reçues", "vu", "vus", "vue", "vues",
+  "conçu", "conçus", "produit", "produits", "construit", "construits",
+  "permis", "promis", "compris", "appris", "acquis", "connu", "connus",
+  "tenu", "obtenu", "vendu", "rendu", "attendu", "entendu", "perdu",
+  "répondu", "résolu", "inscrit", "décrit", "détruit", "réduit", "traduit",
+]);
+
+// Verbes de mouvement/état conjugués avec « être » au passé composé
+// (« est allé », « sont venus ») : ce n'est PAS de la voix passive.
+const ETRE_MOVEMENT_PP = new Set([
+  "allé", "allée", "allés", "allées", "venu", "venue", "venus", "venues",
+  "revenu", "revenus", "devenu", "devenus", "parvenu", "arrivé", "arrivée",
+  "arrivés", "arrivées", "parti", "partie", "partis", "parties", "sorti",
+  "sortie", "sortis", "entré", "entrée", "entrés", "rentré", "resté", "restée",
+  "restés", "tombé", "tombée", "tombés", "monté", "montée", "retourné",
+  "né", "née", "nés", "mort", "morte", "morts", "décédé", "reparti",
+]);
+
+function looksLikeParticiple(w: string): boolean {
+  if (IRREGULAR_PP.has(w)) return true;
+  return w.length > 3 && /(ée|és|ées|é|ies|ie|is|it|ues|ue|us)$/.test(w);
+}
+
+function tokenizeWords(s: string): string[] {
+  return s.toLowerCase().split(/[^a-zàâäéèêëîïôöùûüç]+/i).filter(Boolean);
+}
+
+function isPassiveSentence(sentence: string): boolean {
+  const w = tokenizeWords(sentence);
+  for (let i = 0; i < w.length - 1; i++) {
+    if (!ETRE_FORMS.has(w[i])) continue;
+    const next = w[i + 1];
+    // être + participe (adverbe en -ment toléré entre les deux)
+    if (looksLikeParticiple(next) && !ETRE_MOVEMENT_PP.has(next)) return true;
+    if (
+      next.endsWith("ment") &&
+      i + 2 < w.length &&
+      looksLikeParticiple(w[i + 2]) &&
+      !ETRE_MOVEMENT_PP.has(w[i + 2])
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function passiveVoiceRatio(text: string): number {
+  const sentences = text
+    .split(/[.!?]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (sentences.length === 0) return 0;
+  const passive = sentences.filter(isPassiveSentence).length;
+  return passive / sentences.length;
+}
+
 export function analyzeSeo(article: Article): SeoReport {
   const checks: SeoCheck[] = [];
   const keyword = article.seo.focusKeyword.trim().toLowerCase();
@@ -305,8 +375,8 @@ export function analyzeSeo(article: Article): SeoReport {
     id: "content-length",
     group: "structure",
     label: "Longueur du contenu",
-    status: words >= 600 ? "good" : words >= 300 ? "warning" : "bad",
-    message: `${words} mots (visez au moins 600 mots pour un article de fond).`,
+    status: words >= 1200 ? "good" : words >= 800 ? "warning" : "bad",
+    message: `${words} mots (idéal : 1200-1400 mots).`,
   });
 
   checks.push({
@@ -339,6 +409,15 @@ export function analyzeSeo(article: Article): SeoReport {
     label: "Longueur des phrases",
     status: ratio <= 0.25 ? "good" : ratio <= 0.4 ? "warning" : "bad",
     message: `${Math.round(ratio * 100)}% de phrases longues (>25 mots). Visez < 25%.`,
+  });
+
+  const passiveRatio = passiveVoiceRatio(text);
+  checks.push({
+    id: "passive-voice",
+    group: "readability",
+    label: "Voix passive",
+    status: passiveRatio <= 0.1 ? "good" : passiveRatio <= 0.2 ? "warning" : "bad",
+    message: `${Math.round(passiveRatio * 100)}% de phrases à la voix passive (visez ≤ 10%).`,
   });
 
   const paragraphs = article.blocks.filter((b) => b.type === "paragraph");
@@ -464,6 +543,12 @@ function hasLongSentence(html: string): boolean {
   return sentences.some((s) => countWords(s) > 25);
 }
 
+function hasPassiveVoice(html: string): boolean {
+  return stripHtml(html)
+    .split(/[.!?]+/)
+    .some((s) => isPassiveSentence(s));
+}
+
 export function checkTargets(article: Article, checkId: string): CheckTarget {
   const blocks = article.blocks;
   const base = (o: Partial<CheckTarget>): CheckTarget => ({
@@ -518,6 +603,10 @@ export function checkTargets(article: Article, checkId: string): CheckTarget {
     }
     case "sentence-length": {
       const ids = paras.filter((p) => hasLongSentence(p.html)).map((p) => p.id);
+      return base({ blockIds: ids.length ? ids : paraIds });
+    }
+    case "passive-voice": {
+      const ids = paras.filter((p) => hasPassiveVoice(p.html)).map((p) => p.id);
       return base({ blockIds: ids.length ? ids : paraIds });
     }
     case "paragraph-length": {
