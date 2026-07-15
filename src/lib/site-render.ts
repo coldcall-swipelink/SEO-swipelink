@@ -16,6 +16,39 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+// Base publique de l'app SEO : les images uploadées sont servies par l'app
+// (route /api/uploads/[id]). Sur le site vitrine, ces URLs relatives doivent
+// devenir absolues, sinon elles pointent vers swipelink.fr (où elles n'existent pas).
+const APP_URL = (
+  process.env.APP_PUBLIC_URL || "https://seo-swipelink.vercel.app"
+).replace(/\/$/, "");
+
+// Rend absolue une URL d'asset servie par l'app (chemin racine « /… »).
+// Laisse intactes les URLs déjà absolues (http, data:) et les ancres.
+function abs(url: string): string {
+  if (!url) return url;
+  if (/^https?:\/\//i.test(url) || url.startsWith("data:") || url.startsWith("#"))
+    return url;
+  if (url.startsWith("/")) return APP_URL + url;
+  return url;
+}
+
+// Réécrit les URLs d'uploads relatives à l'intérieur d'un fragment HTML
+// (contenu enrichi des paragraphes) vers l'app.
+function rewriteAssets(html: string): string {
+  return html.replace(
+    /(src|href)=("|')\/api\/uploads\//g,
+    `$1=$2${APP_URL}/api/uploads/`
+  );
+}
+
+// Excerpt de carte, avec repli sur le début du texte de l'article si vide.
+function cardExcerpt(a: Article): string {
+  if (a.excerpt && a.excerpt.trim()) return a.excerpt.trim();
+  const text = extractText(a.blocks).trim();
+  return text.length > 150 ? text.slice(0, 147).trimEnd() + "…" : text;
+}
+
 function slugAnchor(text: string): string {
   return text
     .toLowerCase()
@@ -87,10 +120,10 @@ function renderBlock(b: Block): string {
       return `<h${b.level} id="${slugAnchor(b.text)}">${esc(b.text)}</h${b.level}>`;
     case "paragraph":
       // Contenu déjà en HTML enrichi (gras, liens…), écrit dans l'éditeur.
-      return b.html;
+      return rewriteAssets(b.html);
     case "image":
       return (
-        `<figure><img src="${esc(b.src)}" alt="${esc(b.alt)}" loading="lazy" decoding="async">` +
+        `<figure><img src="${esc(abs(b.src))}" alt="${esc(b.alt)}" loading="lazy" decoding="async">` +
         (b.caption
           ? `<figcaption style="margin-top:.5rem;text-align:center;font-size:.9rem;color:var(--muted)">${esc(
               b.caption
@@ -267,7 +300,7 @@ export function renderArticlePage(view: Article): string {
 
   const cover = view.coverImage
     ? `<div class="container"><img src="${esc(
-        view.coverImage
+        abs(view.coverImage)
       )}" alt="${esc(
         view.title
       )}" style="width:100%;max-width:900px;margin:0 auto 2.5rem;border-radius:var(--r-lg);box-shadow:var(--shadow)"></div>`
@@ -360,7 +393,7 @@ export function renderBlogCards(
       const tag = tags[a.id];
       const image = a.coverImage
         ? `<div class="blog-card-image"><img src="${esc(
-            a.coverImage
+            abs(a.coverImage)
           )}" alt="${esc(a.title)}" loading="lazy" decoding="async"></div>`
         : `<div class="blog-card-image"></div>`;
       return `<a href="/blog/${esc(slug)}" class="blog-card">
@@ -368,7 +401,7 @@ export function renderBlogCards(
         <div class="blog-card-body">
           ${tag ? `<span class="blog-card-tag">${esc(tag)}</span>` : ""}
           <h3>${esc(a.title)}</h3>
-          <p>${esc(a.excerpt)}</p>
+          <p>${esc(cardExcerpt(a))}</p>
           <span class="blog-card-meta">${rt} min de lecture</span>
         </div>
       </a>`;
