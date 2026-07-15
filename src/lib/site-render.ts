@@ -257,8 +257,7 @@ const FOOTER = `<footer class="footer">
   </div>
 </footer>`;
 
-const FAVICON =
-  "https://cdn.prod.website-files.com/68063d6ee4f168da919e702d/680b522768ad433ffc9edf66_safeimagekit-Capture%20d%27%C3%A9cran%202025-04-22%20164446.png";
+const FAVICON = "/assets/favicon.svg";
 
 // --- Page article ----------------------------------------------------------
 
@@ -319,7 +318,7 @@ export function renderArticlePage(view: Article): string {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/style.css?v=2">
-<link rel="icon" href="${FAVICON}" />
+<link rel="icon" type="image/svg+xml" href="${FAVICON}" />
 ${view.seo.noindex ? '<meta name="robots" content="noindex, nofollow">' : '<meta name="robots" content="index, follow">'}
 <link rel="canonical" href="${esc(canonical)}" />
 <meta property="og:title" content="${esc(title)}" />
