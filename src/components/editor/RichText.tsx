@@ -31,6 +31,8 @@ export function RichText({ value, onChange, placeholder }: RichTextProps) {
   const [popover, setPopover] = useState<Popover>(null);
   const [linkUrl, setLinkUrl] = useState("");
   const savedRange = useRef<Range | null>(null);
+  // Lien en cours d'édition (sélection posée sur un <a> existant).
+  const editingAnchor = useRef<HTMLAnchorElement | null>(null);
 
   useEffect(() => {
     if (ref.current && ref.current.innerHTML !== value) {
@@ -55,6 +57,19 @@ export function RichText({ value, onChange, placeholder }: RichTextProps) {
       sel.removeAllRanges();
       sel.addRange(savedRange.current);
     }
+  }
+
+  // Trouve le lien <a> englobant la sélection courante (dans l'éditeur).
+  function anchorInSelection(): HTMLAnchorElement | null {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !ref.current) return null;
+    let node: Node | null = sel.anchorNode;
+    if (!node || !ref.current.contains(node)) return null;
+    while (node && node !== ref.current) {
+      if (node instanceof HTMLAnchorElement) return node;
+      node = node.parentNode;
+    }
+    return null;
   }
 
   function exec(command: string, arg?: string) {
@@ -90,12 +105,36 @@ export function RichText({ value, onChange, placeholder }: RichTextProps) {
 
   function openPopover(p: Popover) {
     saveSelection();
-    if (p === "link") setLinkUrl("");
+    if (p === "link") {
+      // Pré-remplit avec le lien existant si la sélection est déjà sur un <a>.
+      const a = anchorInSelection();
+      editingAnchor.current = a;
+      setLinkUrl(a ? a.getAttribute("href") || "" : "");
+    }
     setPopover((cur) => (cur === p ? null : p));
   }
 
   function applyLink() {
-    if (!linkUrl.trim()) {
+    const url = linkUrl.trim();
+
+    // Édition d'un lien existant : met à jour (ou retire) sans imbriquer.
+    if (editingAnchor.current) {
+      const a = editingAnchor.current;
+      if (url) {
+        a.setAttribute("href", url);
+      } else {
+        // Champ vidé → retire le lien en conservant le texte.
+        const parent = a.parentNode;
+        while (a.firstChild) parent?.insertBefore(a.firstChild, a);
+        parent?.removeChild(a);
+      }
+      editingAnchor.current = null;
+      emit();
+      setPopover(null);
+      return;
+    }
+
+    if (!url) {
       setPopover(null);
       return;
     }
@@ -103,9 +142,9 @@ export function RichText({ value, onChange, placeholder }: RichTextProps) {
     restoreSelection();
     const sel = window.getSelection();
     if (sel && sel.isCollapsed) {
-      document.execCommand("insertHTML", false, `<a href="${linkUrl}">${linkUrl}</a>`);
+      document.execCommand("insertHTML", false, `<a href="${url}">${url}</a>`);
     } else {
-      document.execCommand("createLink", false, linkUrl);
+      document.execCommand("createLink", false, url);
     }
     emit();
     setPopover(null);
