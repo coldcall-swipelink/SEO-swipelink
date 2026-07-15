@@ -99,6 +99,26 @@ function classifyLine(raw: string): Line {
   return { kind: "text", text: line.trim() };
 }
 
+// Rejette un texte manifestement issu du bruit d'OCR : cadres de sélection,
+// libellés d'interface, poignées de redimensionnement ou fragments de très
+// gros titres mal lus (ex. « H1 Heading 2 ———] », « dant | ériode d », « 70 | »).
+function isJunkText(text: string): boolean {
+  const s = text.trim();
+  const letters = (s.match(/\p{L}/gu) || []).length;
+  if (letters < 2) return true; // quasiment aucune lettre
+  if (/[|[\]{}\\<>]/.test(s)) return true; // caractères d'artefact d'UI
+  if (/[-–—_=]{3,}/.test(s)) return true; // traits d'un cadre de sélection
+  const nonSpace = s.replace(/\s+/g, "").length;
+  if (nonSpace > 0 && letters / nonSpace < 0.5) return true; // majorité de symboles
+  return false;
+}
+
+// Compte les lettres d'un fragment HTML (balises retirées).
+function letterCount(html: string): number {
+  const text = html.replace(/<[^>]*>/g, "");
+  return (text.match(/\p{L}/gu) || []).length;
+}
+
 // Heuristique : une ligne courte, sans ponctuation finale de phrase, est
 // probablement un titre dans un texte brut sans balises markdown.
 function looksLikeHeading(text: string): boolean {
@@ -246,7 +266,14 @@ export function parsePlainText(text: string, opts: ParseOptions = {}): Block[] {
 
   flushPara();
   flushList();
-  return blocks;
+
+  // Nettoyage : écarte les blocs-déchets d'OCR (titres bruités, paragraphes
+  // quasi vides). Les listes et les blocs de contenu réel sont conservés.
+  return blocks.filter((b) => {
+    if (b.type === "heading") return !isJunkText(b.text);
+    if (b.type === "paragraph") return letterCount(b.html) >= 2;
+    return true;
+  });
 }
 
 // Résumé lisible du résultat d'analyse, pour l'aperçu avant import.

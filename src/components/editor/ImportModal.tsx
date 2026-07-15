@@ -64,6 +64,34 @@ export function ImportModal({
     onClose();
   }
 
+  // Prépare l'image pour l'OCR : niveaux de gris + contraste (meilleure
+  // lisibilité), agrandissement des petites captures et bornage des très
+  // grandes. En cas d'échec, on retombe sur l'image d'origine.
+  async function preprocessImage(file: Blob): Promise<Blob> {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const MAX_W = 2600;
+      let scale = 1;
+      if (bitmap.width < 1000) scale = 2;
+      else if (bitmap.width > MAX_W) scale = MAX_W / bitmap.width;
+      const w = Math.round(bitmap.width * scale);
+      const h = Math.round(bitmap.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return file;
+      ctx.filter = "grayscale(1) contrast(1.2)";
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      const blob = await new Promise<Blob | null>((res) =>
+        canvas.toBlob(res, "image/png")
+      );
+      return blob ?? file;
+    } catch {
+      return file;
+    }
+  }
+
   // Lance la reconnaissance de texte (OCR) sur une image, 100 % dans le
   // navigateur via Tesseract.js. Le texte reconnu est ajouté à la zone de
   // saisie, où il peut être relu et corrigé avant l'import.
@@ -74,6 +102,7 @@ export function ImportModal({
     }
     setOcr({ status: "running", label: "Préparation du moteur OCR…", progress: 0 });
     try {
+      const image = await preprocessImage(file);
       // Import dynamique : la bibliothèque (volumineuse) n'est chargée qu'à
       // la première utilisation de l'OCR.
       const { createWorker } = await import("tesseract.js");
@@ -100,7 +129,7 @@ export function ImportModal({
         },
       });
       try {
-        const { data } = await worker.recognize(file);
+        const { data } = await worker.recognize(image);
         const recognized = data.text.trim();
         if (!recognized) {
           setOcr({
@@ -213,10 +242,14 @@ export function ImportModal({
                 <p className="text-xs text-gray-400">
                   Glissez-déposez une image, cliquez pour en choisir une, ou
                   collez une capture (Ctrl/⌘+V). Le texte est extrait dans le
-                  navigateur, sans envoi à un service externe. Astuce : cadrez
-                  la capture sur l'article (sans les menus) pour un meilleur
-                  résultat ; les très gros titres peuvent demander une petite
-                  correction.
+                  navigateur, sans envoi à un service externe.
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Pour un bon résultat : capturez l'<strong>article publié ou
+                  son aperçu</strong> (pas l'éditeur Webflow — le cadre de
+                  sélection autour du titre perturbe la lecture), et cadrez sur
+                  le contenu. Le <strong>titre de l'article</strong> se saisit
+                  généralement mieux à la main.
                 </p>
                 <input
                   ref={fileInputRef}
