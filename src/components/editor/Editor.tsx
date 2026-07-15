@@ -18,6 +18,7 @@ import { BlockEditor } from "./BlockEditor";
 import { SeoPanel, GooglePreview } from "./SeoPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { SerpDrawer } from "./SerpDrawer";
+import { ImportModal } from "./ImportModal";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 type Tab = "seo" | "settings";
@@ -40,6 +41,7 @@ export function Editor({ id }: { id: string }) {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setTab] = useState<Tab>("seo");
   const [showMenu, setShowMenu] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [serpOpen, setSerpOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -128,6 +130,15 @@ export function Editor({ id }: { id: string }) {
     if (!article) return;
     update({ blocks: [...article.blocks, newBlock(type)] });
     setShowMenu(false);
+  }
+
+  // Insère les blocs issus d'un import de texte brut : ajout à la suite ou
+  // remplacement complet du contenu existant.
+  function importBlocks(blocks: Block[], mode: "append" | "replace") {
+    if (!article || blocks.length === 0) return;
+    update({
+      blocks: mode === "replace" ? blocks : [...article.blocks, ...blocks],
+    });
   }
 
   function removeBlock(blockId: string) {
@@ -384,18 +395,25 @@ export function Editor({ id }: { id: string }) {
             ))}
           </div>
 
-          {/* Ajout de bloc */}
-          <div className="relative mt-4">
+          {/* Ajout de bloc + import */}
+          <div className="relative mt-4 flex gap-3">
             <button
               id="add-block-btn"
               onClick={() => setShowMenu((v) => !v)}
-              className={`flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed py-4 text-gray-500 transition hover:border-brand hover:text-brand ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed py-4 text-gray-500 transition hover:border-brand hover:text-brand ${
                 highlightIds.includes("__add__")
                   ? "block-highlight border-brand text-brand"
                   : "border-gray-200"
               }`}
             >
               <span className="text-xl">+</span> Ajouter un bloc
+            </button>
+            <button
+              onClick={() => setShowImport(true)}
+              title="Coller le texte brut ou une capture d'écran d'un article existant pour générer les blocs"
+              className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 px-5 py-4 text-gray-500 transition hover:border-brand hover:text-brand"
+            >
+              <span className="text-lg">📥</span> Importer un article
             </button>
             {showMenu && (
               <div className="absolute left-1/2 z-10 mt-2 grid w-72 -translate-x-1/2 grid-cols-2 gap-1 rounded-xl border border-gray-100 bg-white p-2 shadow-xl">
@@ -448,6 +466,13 @@ export function Editor({ id }: { id: string }) {
         open={serpOpen}
         keyword={article.seo.focusKeyword}
         onClose={() => setSerpOpen(false)}
+      />
+
+      <ImportModal
+        open={showImport}
+        hasExistingBlocks={article.blocks.length > 0}
+        onClose={() => setShowImport(false)}
+        onImport={importBlocks}
       />
     </div>
   );
