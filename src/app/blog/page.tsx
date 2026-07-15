@@ -20,9 +20,6 @@ export default async function BlogIndexPage() {
           <Link href="/" className="text-lg font-bold text-gray-900">
             {SITE.name}
           </Link>
-          <Link href="/dashboard" className="text-sm font-semibold text-brand">
-            Espace de rédaction →
-          </Link>
         </div>
       </header>
 

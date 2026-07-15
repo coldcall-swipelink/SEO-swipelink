@@ -88,13 +88,7 @@ export default async function BlogArticlePage({
       <header className="border-b border-gray-100">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <Link href="/blog" className="text-sm font-semibold text-brand">
-            ← {SITE.name}
-          </Link>
-          <Link
-            href={`/editor/${article.id}`}
-            className="text-sm text-gray-500 hover:text-gray-900"
-          >
-            Éditer
+            ← Retour au blog
           </Link>
         </div>
       </header>
