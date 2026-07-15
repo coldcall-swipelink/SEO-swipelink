@@ -60,7 +60,9 @@ export function Editor({ id }: { id: string }) {
   const [notFound, setNotFound] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setTab] = useState<Tab>("seo");
-  const [showMenu, setShowMenu] = useState(false);
+  // Menu « ajouter un bloc » : index d'insertion ouvert (null = fermé).
+  // i = insérer avant le bloc i ; blocks.length = ajouter en fin.
+  const [menuIndex, setMenuIndex] = useState<number | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [serpOpen, setSerpOpen] = useState(false);
@@ -146,10 +148,13 @@ export function Editor({ id }: { id: string }) {
     update({ blocks: article.blocks.map((b) => (b.id === blockId ? block : b)) });
   }
 
-  function addBlock(type: BlockType) {
+  function addBlock(type: BlockType, index?: number) {
     if (!article) return;
-    update({ blocks: [...article.blocks, newBlock(type)] });
-    setShowMenu(false);
+    const blocks = [...article.blocks];
+    const at = index ?? blocks.length;
+    blocks.splice(at, 0, newBlock(type));
+    update({ blocks });
+    setMenuIndex(null);
   }
 
   // Insère les blocs issus d'un import de texte brut : ajout à la suite ou
@@ -404,19 +409,25 @@ export function Editor({ id }: { id: string }) {
             /blog/{article.slug || "…"}
           </div>
 
-          <div className="mt-8 space-y-3">
+          <div className="mt-8">
             {article.blocks.map((block, i) => (
-              <BlockEditor
-                key={block.id}
-                block={block}
-                onChange={(b) => updateBlock(block.id, b)}
-                onRemove={() => removeBlock(block.id)}
-                onMoveUp={() => moveBlock(i, -1)}
-                onMoveDown={() => moveBlock(i, 1)}
-                isFirst={i === 0}
-                isLast={i === article.blocks.length - 1}
-                highlighted={highlightIds.includes(block.id)}
-              />
+              <div key={block.id}>
+                <InsertPoint
+                  open={menuIndex === i}
+                  onToggle={() => setMenuIndex(menuIndex === i ? null : i)}
+                  onPick={(t) => addBlock(t, i)}
+                />
+                <BlockEditor
+                  block={block}
+                  onChange={(b) => updateBlock(block.id, b)}
+                  onRemove={() => removeBlock(block.id)}
+                  onMoveUp={() => moveBlock(i, -1)}
+                  onMoveDown={() => moveBlock(i, 1)}
+                  isFirst={i === 0}
+                  isLast={i === article.blocks.length - 1}
+                  highlighted={highlightIds.includes(block.id)}
+                />
+              </div>
             ))}
           </div>
 
@@ -424,7 +435,11 @@ export function Editor({ id }: { id: string }) {
           <div className="relative mt-4 flex gap-3">
             <button
               id="add-block-btn"
-              onClick={() => setShowMenu((v) => !v)}
+              onClick={() =>
+                setMenuIndex(
+                  menuIndex === article.blocks.length ? null : article.blocks.length
+                )
+              }
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed py-4 text-gray-500 transition hover:border-brand hover:text-brand ${
                 highlightIds.includes("__add__")
                   ? "block-highlight border-brand text-brand"
@@ -440,8 +455,8 @@ export function Editor({ id }: { id: string }) {
             >
               <span className="text-lg">📥</span> Importer un article
             </button>
-            {showMenu && (
-              <div className="absolute left-1/2 z-10 mt-2 grid w-72 -translate-x-1/2 grid-cols-2 gap-1 rounded-xl border border-gray-100 bg-white p-2 shadow-xl">
+            {menuIndex === article.blocks.length && (
+              <div className="absolute left-1/2 top-full z-10 mt-2 grid w-72 -translate-x-1/2 grid-cols-2 gap-1 rounded-xl border border-gray-100 bg-white p-2 shadow-xl">
                 {BLOCK_MENU.map((item) => (
                   <button
                     key={item.type}
@@ -499,6 +514,53 @@ export function Editor({ id }: { id: string }) {
         onClose={() => setShowImport(false)}
         onImport={importBlocks}
       />
+    </div>
+  );
+}
+
+// Point d'insertion entre deux blocs : un « + » discret qui apparaît au survol
+// et ouvre le menu des types de bloc pour insérer à cette position.
+function InsertPoint({
+  open,
+  onToggle,
+  onPick,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onPick: (type: BlockType) => void;
+}) {
+  return (
+    <div className="relative">
+      <div className="group flex items-center justify-center py-1.5">
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-gray-100 opacity-0 transition group-hover:opacity-100" />
+        <button
+          type="button"
+          onClick={onToggle}
+          title="Insérer un bloc ici"
+          className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full border bg-white text-sm shadow-sm transition ${
+            open
+              ? "border-brand text-brand"
+              : "border-gray-200 text-gray-400 opacity-0 hover:border-brand hover:text-brand group-hover:opacity-100"
+          }`}
+        >
+          +
+        </button>
+      </div>
+      {open && (
+        <div className="absolute left-1/2 top-8 z-20 grid w-72 -translate-x-1/2 grid-cols-2 gap-1 rounded-xl border border-gray-100 bg-white p-2 shadow-xl">
+          {BLOCK_MENU.map((item) => (
+            <button
+              key={item.type}
+              type="button"
+              onClick={() => onPick(item.type)}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <span className="w-5 text-center">{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
