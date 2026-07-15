@@ -30,6 +30,7 @@ export function RichText({ value, onChange, placeholder }: RichTextProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [popover, setPopover] = useState<Popover>(null);
   const [linkUrl, setLinkUrl] = useState("");
+  const [linkNewTab, setLinkNewTab] = useState(false);
   const savedRange = useRef<Range | null>(null);
   // Lien en cours d'édition (sélection posée sur un <a> existant).
   const editingAnchor = useRef<HTMLAnchorElement | null>(null);
@@ -72,6 +73,17 @@ export function RichText({ value, onChange, placeholder }: RichTextProps) {
     return null;
   }
 
+  // Applique (ou retire) l'ouverture dans un nouvel onglet sur un lien.
+  function setNewTab(a: HTMLAnchorElement, newTab: boolean) {
+    if (newTab) {
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener noreferrer");
+    } else {
+      a.removeAttribute("target");
+      a.removeAttribute("rel");
+    }
+  }
+
   function exec(command: string, arg?: string) {
     ref.current?.focus();
     restoreSelection();
@@ -110,6 +122,7 @@ export function RichText({ value, onChange, placeholder }: RichTextProps) {
       const a = anchorInSelection();
       editingAnchor.current = a;
       setLinkUrl(a ? a.getAttribute("href") || "" : "");
+      setLinkNewTab(a ? a.getAttribute("target") === "_blank" : false);
     }
     setPopover((cur) => (cur === p ? null : p));
   }
@@ -122,6 +135,7 @@ export function RichText({ value, onChange, placeholder }: RichTextProps) {
       const a = editingAnchor.current;
       if (url) {
         a.setAttribute("href", url);
+        setNewTab(a, linkNewTab);
       } else {
         // Champ vidé → retire le lien en conservant le texte.
         const parent = a.parentNode;
@@ -142,9 +156,15 @@ export function RichText({ value, onChange, placeholder }: RichTextProps) {
     restoreSelection();
     const sel = window.getSelection();
     if (sel && sel.isCollapsed) {
-      document.execCommand("insertHTML", false, `<a href="${url}">${url}</a>`);
+      const attrs = linkNewTab
+        ? ' target="_blank" rel="noopener noreferrer"'
+        : "";
+      document.execCommand("insertHTML", false, `<a href="${url}"${attrs}>${url}</a>`);
     } else {
       document.execCommand("createLink", false, url);
+      // execCommand ne pose pas target : on l'applique sur le lien créé.
+      const created = anchorInSelection();
+      if (created) setNewTab(created, linkNewTab);
     }
     emit();
     setPopover(null);
@@ -260,29 +280,40 @@ export function RichText({ value, onChange, placeholder }: RichTextProps) {
       />
 
       {popover === "link" && (
-        <div className="absolute z-20 mt-1 flex gap-2 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+        <div className="absolute z-20 mt-1 flex w-80 flex-col gap-2 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
           <input
             autoFocus
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && applyLink()}
             placeholder="https://exemple.com ou /blog/mon-article"
-            className="w-72 rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-brand"
+            className="w-full rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-brand"
           />
-          <button
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={applyLink}
-            className="rounded bg-brand px-3 py-1 text-sm font-semibold text-white"
-          >
-            OK
-          </button>
-          <button
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setPopover(null)}
-            className="rounded px-2 py-1 text-sm text-gray-500"
-          >
-            Annuler
-          </button>
+          <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={linkNewTab}
+              onChange={(e) => setLinkNewTab(e.target.checked)}
+              className="h-4 w-4 accent-brand"
+            />
+            Ouvrir dans un nouvel onglet
+          </label>
+          <div className="flex justify-end gap-2">
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setPopover(null)}
+              className="rounded px-2 py-1 text-sm text-gray-500"
+            >
+              Annuler
+            </button>
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={applyLink}
+              className="rounded bg-brand px-3 py-1 text-sm font-semibold text-white"
+            >
+              OK
+            </button>
+          </div>
         </div>
       )}
     </div>
