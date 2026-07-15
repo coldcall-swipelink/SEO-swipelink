@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getArticle, updateArticle } from "@/lib/store";
+import { syncUnpublishFromSite } from "@/lib/publish-site";
 
 export const dynamic = "force-dynamic";
 
@@ -16,5 +17,9 @@ export async function POST(
   }
 
   const updated = await updateArticle(id, { status: "draft" });
-  return NextResponse.json(updated);
+
+  // Retire aussi la page du site vitrine.
+  const siteSync = await syncUnpublishFromSite(existing);
+
+  return NextResponse.json({ ...updated, siteSync });
 }

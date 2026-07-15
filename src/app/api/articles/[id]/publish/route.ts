@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getArticle, updateArticle } from "@/lib/store";
 import { contentSnapshot } from "@/lib/types";
+import { syncPublishToSite } from "@/lib/publish-site";
 
 export const dynamic = "force-dynamic";
 
@@ -22,5 +23,12 @@ export async function POST(
     published: contentSnapshot(existing),
     publishedAt: existing.publishedAt ?? new Date().toISOString(),
   });
-  return NextResponse.json(updated);
+
+  // Publie la page sur le site vitrine (swipelink.fr/blog). N'échoue jamais
+  // la requête : le résultat est renvoyé pour affichage dans l'éditeur.
+  const siteSync = updated
+    ? await syncPublishToSite(updated)
+    : { ok: false, error: "Article introuvable après mise à jour" };
+
+  return NextResponse.json({ ...updated, siteSync });
 }

@@ -23,6 +23,26 @@ import { ImportModal } from "./ImportModal";
 type SaveState = "idle" | "saving" | "saved" | "error";
 type Tab = "seo" | "settings";
 
+// Résultat de la synchronisation vers le site vitrine (swipelink.fr/blog),
+// renvoyé par les routes publish/unpublish.
+type SiteSync = {
+  ok: boolean;
+  skipped?: boolean;
+  reason?: string;
+  error?: string;
+};
+
+// Prévient l'utilisateur si la mise en ligne sur le site a échoué.
+// (Un `skipped` — intégration non configurée — reste silencieux.)
+function warnIfSiteSyncFailed(sync?: SiteSync) {
+  if (!sync || sync.ok || sync.skipped) return;
+  alert(
+    "L'article a bien été enregistré, mais sa mise en ligne sur swipelink.fr/blog a échoué :\n\n" +
+      (sync.error || "erreur inconnue") +
+      "\n\nVérifie la configuration GitHub du site puis republie."
+  );
+}
+
 const BLOCK_MENU: { type: BlockType; label: string; icon: string }[] = [
   { type: "paragraph", label: "Paragraphe", icon: "¶" },
   { type: "heading", label: "Titre", icon: "H" },
@@ -170,10 +190,11 @@ export function Editor({ id }: { id: string }) {
 
       const res = await fetch(`/api/articles/${id}/publish`, { method: "POST" });
       if (!res.ok) throw new Error("publish failed");
-      const updated: Article = await res.json();
+      const updated: Article & { siteSync?: SiteSync } = await res.json();
       setArticle(updated);
       setBaseline(updated.published);
       setSaveState("saved");
+      warnIfSiteSyncFailed(updated.siteSync);
     } catch {
       setSaveState("error");
     } finally {
@@ -187,7 +208,11 @@ export function Editor({ id }: { id: string }) {
     setPublishing(true);
     try {
       const res = await fetch(`/api/articles/${id}/unpublish`, { method: "POST" });
-      if (res.ok) setArticle(await res.json());
+      if (res.ok) {
+        const updated: Article & { siteSync?: SiteSync } = await res.json();
+        setArticle(updated);
+        warnIfSiteSyncFailed(updated.siteSync);
+      }
     } finally {
       setPublishing(false);
     }
