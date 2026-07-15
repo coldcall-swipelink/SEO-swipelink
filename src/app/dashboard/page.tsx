@@ -37,6 +37,38 @@ export default function DashboardPage() {
     router.push(`/editor/${article.id}`);
   }
 
+  // Crée un article pré-rempli depuis l'URL d'une page publiée.
+  // Renvoie un message d'erreur en cas d'échec, ou null si la redirection a lieu.
+  async function createFromUrl(
+    categoryId: string | null,
+    url: string
+  ): Promise<string | null> {
+    const imp = await fetch("/api/import-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    if (!imp.ok) {
+      const e = await imp.json().catch(() => ({}));
+      return e.error || "Import impossible.";
+    }
+    const data = await imp.json();
+    const res = await fetch("/api/articles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        categoryId,
+        title: data.title,
+        excerpt: data.excerpt,
+        coverImage: data.coverImage,
+        blocks: data.blocks,
+      }),
+    });
+    const article = (await res.json()) as Article;
+    router.push(`/editor/${article.id}`);
+    return null;
+  }
+
   async function remove(id: string) {
     if (!confirm("Supprimer définitivement cet article ?")) return;
     await fetch(`/api/articles/${id}`, { method: "DELETE" });
@@ -162,30 +194,58 @@ export default function DashboardPage() {
           categories={categories}
           onClose={() => setShowModal(false)}
           onCreate={createArticle}
+          onCreateFromUrl={createFromUrl}
         />
       )}
     </div>
   );
 }
 
+type StartMode = "template" | "scratch" | "url";
+
 function NewArticleModal({
   categories,
   onClose,
   onCreate,
+  onCreateFromUrl,
 }: {
   categories: CategoryWithTemplate[];
   onClose: () => void;
   onCreate: (categoryId: string | null, useTemplate: boolean) => void;
+  onCreateFromUrl: (
+    categoryId: string | null,
+    url: string
+  ) => Promise<string | null>;
 }) {
   const [categoryId, setCategoryId] = useState<string>("");
-  const [useTemplate, setUseTemplate] = useState(true);
+  const [start, setStart] = useState<StartMode>("template");
+  const [url, setUrl] = useState("");
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const selected = categories.find((c) => c.id === categoryId);
   const canTemplate = !!selected?.hasTemplate;
+  // Repli implicite sur « partir de zéro » si le template n'est pas disponible.
+  const effectiveStart: StartMode =
+    start === "template" && !canTemplate ? "scratch" : start;
 
-  function submit() {
+  async function submit() {
+    setError(null);
+    if (effectiveStart === "url") {
+      const trimmed = url.trim();
+      if (!trimmed) {
+        setError("Renseignez l'URL de l'article à importer.");
+        return;
+      }
+      setCreating(true);
+      const err = await onCreateFromUrl(categoryId || null, trimmed);
+      if (err) {
+        setError(err);
+        setCreating(false);
+      }
+      return;
+    }
     setCreating(true);
-    onCreate(categoryId || null, canTemplate && useTemplate);
+    onCreate(categoryId || null, effectiveStart === "template");
   }
 
   return (
@@ -235,7 +295,7 @@ function NewArticleModal({
           </span>
           <label
             className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
-              useTemplate && canTemplate
+              effectiveStart === "template"
                 ? "border-brand bg-indigo-50"
                 : "border-gray-200"
             } ${!canTemplate ? "opacity-50" : ""}`}
@@ -245,8 +305,8 @@ function NewArticleModal({
               name="start"
               className="mt-1"
               disabled={!canTemplate}
-              checked={useTemplate && canTemplate}
-              onChange={() => setUseTemplate(true)}
+              checked={effectiveStart === "template"}
+              onChange={() => setStart("template")}
             />
             <span>
               <span className="block text-sm font-medium text-gray-900">
@@ -261,7 +321,7 @@ function NewArticleModal({
           </label>
           <label
             className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
-              !useTemplate || !canTemplate
+              effectiveStart === "url"
                 ? "border-brand bg-indigo-50"
                 : "border-gray-200"
             }`}
@@ -270,8 +330,43 @@ function NewArticleModal({
               type="radio"
               name="start"
               className="mt-1"
-              checked={!useTemplate || !canTemplate}
-              onChange={() => setUseTemplate(false)}
+              checked={effectiveStart === "url"}
+              onChange={() => setStart("url")}
+            />
+            <span className="flex-1">
+              <span className="block text-sm font-medium text-gray-900">
+                Importer depuis une URL
+              </span>
+              <span className="block text-xs text-gray-500">
+                Récupère titre, paragraphes, listes et images d'un article déjà
+                publié.
+              </span>
+            </span>
+          </label>
+          {effectiveStart === "url" && (
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+              placeholder="https://votre-site.fr/blog/mon-article"
+              autoFocus
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+          )}
+          <label
+            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
+              effectiveStart === "scratch"
+                ? "border-brand bg-indigo-50"
+                : "border-gray-200"
+            }`}
+          >
+            <input
+              type="radio"
+              name="start"
+              className="mt-1"
+              checked={effectiveStart === "scratch"}
+              onChange={() => setStart("scratch")}
             />
             <span>
               <span className="block text-sm font-medium text-gray-900">
@@ -283,6 +378,12 @@ function NewArticleModal({
             </span>
           </label>
         </div>
+
+        {error && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+            {error}
+          </p>
+        )}
 
         <div className="mt-6 flex justify-end gap-3">
           <button
@@ -296,7 +397,13 @@ function NewArticleModal({
             disabled={creating}
             className="rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
           >
-            {creating ? "Création…" : "Créer l'article"}
+            {creating
+              ? effectiveStart === "url"
+                ? "Import…"
+                : "Création…"
+              : effectiveStart === "url"
+              ? "Importer l'article"
+              : "Créer l'article"}
           </button>
         </div>
       </div>
