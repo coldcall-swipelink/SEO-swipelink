@@ -78,6 +78,10 @@ export default function DashboardPage() {
   const categoryName = (id?: string | null) =>
     categories.find((c) => c.id === id)?.name ?? null;
 
+  // Un article dont le score SEO est < 85 est signalé « à optimiser ».
+  const toOptimizeCount =
+    articles?.filter((a) => analyzeSeo(a).score < 85).length ?? 0;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b border-gray-100 bg-white">
@@ -103,7 +107,19 @@ export default function DashboardPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <h1 className="text-3xl font-extrabold text-gray-900">Mes articles</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-extrabold text-gray-900">Mes articles</h1>
+          {articles && articles.length > 0 && (
+            <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-600">
+              {articles.length} article{articles.length > 1 ? "s" : ""}
+            </span>
+          )}
+          {toOptimizeCount > 0 && (
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+              {toOptimizeCount} à optimiser
+            </span>
+          )}
+        </div>
         <p className="mt-1 text-gray-500">
           Gérez vos brouillons et vos publications.
         </p>
@@ -148,6 +164,12 @@ export default function DashboardPage() {
                           {categoryName(a.categoryId) && (
                             <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-brand">
                               {categoryName(a.categoryId)}
+                            </span>
+                          )}
+                          {report.score < 85 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                              À optimiser
                             </span>
                           )}
                         </div>
