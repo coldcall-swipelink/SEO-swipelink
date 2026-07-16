@@ -1,5 +1,6 @@
 // Rendu HTML sémantique des blocs d'un article (composant serveur).
-import { Block, defaultButtonStyle } from "@/lib/types";
+import { Block, defaultButtonStyle, defaultCtaStyle } from "@/lib/types";
+import { ctaCardStyle } from "@/lib/cta";
 import { StyledButton } from "./StyledButton";
 
 export function ArticleRenderer({ blocks }: { blocks: Block[] }) {
@@ -86,25 +87,26 @@ function BlockView({ block }: { block: Block }) {
           />
         </div>
       );
-    case "cta":
+    case "cta": {
+      const card = block.cardStyle ?? defaultCtaStyle();
       return (
-        <div className="my-8 rounded-2xl border border-indigo-100 bg-indigo-50 p-6 text-center">
+        <div style={ctaCardStyle(card)}>
           {/* marges inline : neutralisent la typographie de .prose-article
               (sinon le titre reçoit une marge haute → carte non centrée verticalement) */}
           <h3
-            style={{ margin: "0 0 0.5rem" }}
-            className="text-xl font-bold text-gray-900"
+            style={{ margin: "0 0 0.5rem", color: card.titleColor }}
+            className="text-xl font-bold"
           >
             {block.title}
           </h3>
-          <p style={{ margin: "0 0 1.25rem" }} className="text-gray-600">
+          <p style={{ margin: "0 0 1.25rem", color: card.textColor }}>
             {block.text}
           </p>
           <StyledButton
-            // Un CTA est un encart centré : le bouton est toujours centré.
+            // L'alignement du bouton suit celui de l'encart.
             style={{
               ...(block.buttonStyle ?? defaultButtonStyle()),
-              align: "center",
+              align: card.align,
             }}
             label={block.buttonLabel}
             url={block.buttonUrl}
@@ -112,6 +114,7 @@ function BlockView({ block }: { block: Block }) {
           />
         </div>
       );
+    }
     case "faq":
       return (
         <div className="my-8">

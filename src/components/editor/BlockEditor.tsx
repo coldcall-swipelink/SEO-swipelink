@@ -1,10 +1,11 @@
 "use client";
 
-import { Block, FaqItem, defaultButtonStyle } from "@/lib/types";
+import { Block, FaqItem, defaultButtonStyle, defaultCtaStyle } from "@/lib/types";
 import { uniqueId } from "@/lib/slug";
 import { RichText } from "./RichText";
 import { ImageUploader } from "./ImageUploader";
 import { ButtonStyler } from "./ButtonStyler";
+import { CtaStyler } from "./CtaStyler";
 
 interface Props {
   block: Block;
@@ -305,15 +306,23 @@ function BlockFields({
             Ouvrir dans un nouvel onglet
           </label>
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Style de l&apos;encart
+          </div>
+          <CtaStyler
+            style={block.cardStyle ?? defaultCtaStyle()}
+            onChange={(cardStyle) => onChange({ ...block, cardStyle })}
+          />
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
             Style du bouton
           </div>
           <ButtonStyler
             style={{
               ...(block.buttonStyle ?? defaultButtonStyle()),
-              align: "center",
+              // L'alignement du bouton suit celui de l'encart (source unique).
+              align: (block.cardStyle ?? defaultCtaStyle()).align,
             }}
             onChange={(buttonStyle) =>
-              onChange({ ...block, buttonStyle: { ...buttonStyle, align: "center" } })
+              onChange({ ...block, buttonStyle })
             }
             previewLabel={block.buttonLabel}
             lockAlign
