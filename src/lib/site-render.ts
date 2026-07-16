@@ -2,6 +2,7 @@
 // exact de la landing page swipelink.fr, à partir des articles de l'app.
 // Ces fichiers sont ensuite poussés dans le repo du site (voir publish-site.ts).
 import { Article, Block, ButtonStyle, defaultButtonStyle } from "./types";
+import { CTA_PADDING, CTA_RADII } from "./cta";
 import { SITE } from "./site";
 import { extractText } from "./seo";
 import { articleJsonLd, breadcrumbJsonLd, faqJsonLd } from "./jsonld";
@@ -152,14 +153,29 @@ function renderBlock(b: Block): string {
     case "button":
       return renderButton(b.style, b.label, b.url, b.newTab);
     case "cta": {
+      const card = b.cardStyle;
+      // Alignement du bouton : suit l'encart si personnalisé, sinon centré.
       const style: ButtonStyle = {
         ...(b.buttonStyle ?? defaultButtonStyle()),
-        align: "center",
+        align: card?.align ?? "center",
       };
+      // Sans cardStyle : on conserve à l'identique le rendu historique
+      // (variables de thème du site) pour ne pas modifier les pages publiées.
+      const cardCss = card
+        ? `margin:2.5rem 0;padding:${CTA_PADDING[card.padding]};background:${card.bgColor};` +
+          (card.showBorder ? `border:1px solid ${card.borderColor};` : "") +
+          `border-radius:${CTA_RADII[card.radius]};text-align:${card.align}`
+        : `margin:2.5rem 0;padding:2rem;background:var(--bg-soft);border:1px solid var(--border);border-radius:var(--r-lg);text-align:center`;
+      const titleCss = card
+        ? `margin:0 0 .5rem;color:${card.titleColor}`
+        : `margin:0 0 .5rem`;
+      const textCss = card
+        ? `margin:0 0 1.25rem;color:${card.textColor}`
+        : `margin:0 0 1.25rem;color:var(--text-soft)`;
       return (
-        `<div style="margin:2.5rem 0;padding:2rem;background:var(--bg-soft);border:1px solid var(--border);border-radius:var(--r-lg);text-align:center">` +
-        `<h3 style="margin:0 0 .5rem">${esc(b.title)}</h3>` +
-        `<p style="margin:0 0 1.25rem;color:var(--text-soft)">${esc(b.text)}</p>` +
+        `<div style="${cardCss}">` +
+        `<h3 style="${titleCss}">${esc(b.title)}</h3>` +
+        `<p style="${textCss}">${esc(b.text)}</p>` +
         renderButton(style, b.buttonLabel, b.buttonUrl, b.buttonNewTab) +
         `</div>`
       );

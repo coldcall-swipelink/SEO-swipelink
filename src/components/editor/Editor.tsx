@@ -11,6 +11,7 @@ import {
   contentSnapshot,
   contentEquals,
   defaultButtonStyle,
+  defaultCtaStyle,
 } from "@/lib/types";
 import { uniqueId, slugify } from "@/lib/slug";
 import { checkTargets, SeoCheck } from "@/lib/seo";
@@ -599,6 +600,7 @@ function newBlock(type: BlockType): Block {
         buttonUrl: "",
         buttonNewTab: false,
         buttonStyle: defaultButtonStyle({ align: "center" }),
+        cardStyle: defaultCtaStyle(),
       };
     case "faq":
       return {

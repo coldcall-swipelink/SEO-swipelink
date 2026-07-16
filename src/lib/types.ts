@@ -37,6 +37,34 @@ export function defaultButtonStyle(
   };
 }
 
+// Style de l'encart CTA (la carte elle-même), entièrement personnalisable.
+export interface CtaStyle {
+  bgColor: string; // couleur de fond de la carte (hex)
+  borderColor: string; // couleur de la bordure (hex)
+  showBorder: boolean; // afficher / masquer la bordure
+  radius: "none" | "sm" | "md" | "lg" | "full"; // arrondi des coins
+  padding: "sm" | "md" | "lg"; // marge interne
+  align: "left" | "center" | "right"; // alignement du contenu (titre/texte/bouton)
+  titleColor: string; // couleur du titre (hex)
+  textColor: string; // couleur du texte d'accroche (hex)
+}
+
+// Défaut reproduisant l'apparence historique de l'encart dans l'app
+// (fond indigo clair, coins très arrondis, contenu centré).
+export function defaultCtaStyle(overrides: Partial<CtaStyle> = {}): CtaStyle {
+  return {
+    bgColor: "#eef2ff", // indigo-50
+    borderColor: "#e0e7ff", // indigo-100
+    showBorder: true,
+    radius: "lg",
+    padding: "md",
+    align: "center",
+    titleColor: "#111827", // gray-900
+    textColor: "#4b5563", // gray-600
+    ...overrides,
+  };
+}
+
 export interface BaseBlock {
   id: string;
   type: BlockType;
@@ -81,6 +109,7 @@ export interface CtaBlock extends BaseBlock {
   buttonUrl: string;
   buttonNewTab?: boolean;
   buttonStyle?: ButtonStyle; // optionnel : défaut appliqué si absent
+  cardStyle?: CtaStyle; // optionnel : défaut appliqué si absent (rétrocompat)
 }
 
 export interface ButtonBlock extends BaseBlock {
