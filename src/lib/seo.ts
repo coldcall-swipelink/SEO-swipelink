@@ -69,6 +69,11 @@ export function extractText(blocks: Block[]): string {
         // l'alt participe au contenu sémantique
         if (b.alt) parts.push(b.alt);
         break;
+      case "table": {
+        const cells = [...b.headers, ...b.rows.flat()].filter((c) => c.trim());
+        if (cells.length) parts.push(cells.join(". "));
+        break;
+      }
     }
   }
   return parts.join(" ").replace(/\s+/g, " ").trim();

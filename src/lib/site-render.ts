@@ -150,6 +150,43 @@ function renderBlock(b: Block): string {
       return `<pre style="margin:1.75rem 0;overflow-x:auto;border-radius:var(--r);background:#0a2540;color:#e2e8f0;padding:1.25rem;font-size:.9rem"><code>${esc(
         b.code
       )}</code></pre>`;
+    case "table": {
+      const hasHeader = b.headers.some((h) => h.trim());
+      const thead = hasHeader
+        ? `<thead><tr>${b.headers
+            .map(
+              (h) =>
+                `<th style="border:1px solid var(--border);padding:.6rem .8rem;text-align:left;background:var(--bg-soft);font-weight:600">${esc(
+                  h
+                )}</th>`
+            )
+            .join("")}</tr></thead>`
+        : "";
+      const tbody = `<tbody>${b.rows
+        .map(
+          (row) =>
+            `<tr>${row
+              .map(
+                (cell) =>
+                  `<td style="border:1px solid var(--border);padding:.6rem .8rem;vertical-align:top">${esc(
+                    cell
+                  )}</td>`
+              )
+              .join("")}</tr>`
+        )
+        .join("")}</tbody>`;
+      const caption = b.caption
+        ? `<figcaption style="margin-top:.5rem;text-align:center;font-size:.9rem;color:var(--muted)">${esc(
+            b.caption
+          )}</figcaption>`
+        : "";
+      return (
+        `<figure style="margin:1.75rem 0;overflow-x:auto">` +
+        `<table style="width:100%;border-collapse:collapse;font-size:.95rem">${thead}${tbody}</table>` +
+        caption +
+        `</figure>`
+      );
+    }
     case "button":
       return renderButton(b.style, b.label, b.url, b.newTab);
     case "cta": {

@@ -9,7 +9,8 @@ export type BlockType =
   | "button"
   | "quote"
   | "list"
-  | "code";
+  | "code"
+  | "table";
 
 // Style d'un bouton, entièrement personnalisable.
 export interface ButtonStyle {
@@ -138,6 +139,15 @@ export interface CodeBlock extends BaseBlock {
   code: string;
 }
 
+export interface TableBlock extends BaseBlock {
+  type: "table";
+  // Première ligne d'en-tête (colonnes). Longueur = nombre de colonnes.
+  headers: string[];
+  // Lignes de données ; chaque ligne a autant de cellules que d'en-têtes.
+  rows: string[][];
+  caption?: string; // légende optionnelle affichée sous le tableau
+}
+
 export type Block =
   | HeadingBlock
   | ParagraphBlock
@@ -147,7 +157,8 @@ export type Block =
   | ButtonBlock
   | QuoteBlock
   | ListBlock
-  | CodeBlock;
+  | CodeBlock
+  | TableBlock;
 
 export type ArticleStatus = "draft" | "published";
 

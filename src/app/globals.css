@@ -80,6 +80,21 @@ body {
 .prose-article strong {
   font-weight: 700;
 }
+.prose-article .prose-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.prose-article .prose-table th,
+.prose-article .prose-table td {
+  border: 1px solid #e5e7eb;
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  vertical-align: top;
+}
+.prose-article .prose-table th {
+  background: #f9fafb;
+  font-weight: 600;
+}
 
 /* FAQ : affordance de clic (chevron animé, marqueur natif masqué) */
 .faq-item summary::-webkit-details-marker {
