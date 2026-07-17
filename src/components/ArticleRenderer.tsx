@@ -76,6 +76,36 @@ function BlockView({ block }: { block: Block }) {
           <code>{block.code}</code>
         </pre>
       );
+    case "table":
+      return (
+        <figure className="my-8 overflow-x-auto">
+          <table className="prose-table w-full border-collapse text-sm">
+            {block.headers.some((h) => h.trim()) && (
+              <thead>
+                <tr>
+                  {block.headers.map((h, i) => (
+                    <th key={i}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {block.rows.map((row, r) => (
+                <tr key={r}>
+                  {row.map((cell, c) => (
+                    <td key={c}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {block.caption && (
+            <figcaption className="mt-2 text-center text-sm text-gray-500">
+              {block.caption}
+            </figcaption>
+          )}
+        </figure>
+      );
     case "button":
       return (
         <div className="my-6">

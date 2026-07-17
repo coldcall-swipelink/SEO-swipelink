@@ -28,6 +28,7 @@ const TYPE_LABELS: Record<Block["type"], string> = {
   quote: "Citation",
   list: "Liste",
   code: "Code",
+  table: "Tableau",
 };
 
 export function BlockEditor({
@@ -230,6 +231,9 @@ function BlockFields({
         </div>
       );
 
+    case "table":
+      return <TableFields block={block} onChange={onChange} />;
+
     case "button":
       return (
         <div className="space-y-2">
@@ -393,6 +397,132 @@ function BlockFields({
     default:
       return null;
   }
+}
+
+function TableFields({
+  block,
+  onChange,
+}: {
+  block: Extract<Block, { type: "table" }>;
+  onChange: (block: Block) => void;
+}) {
+  const cols = block.headers.length;
+
+  const setHeader = (c: number, value: string) => {
+    const headers = [...block.headers];
+    headers[c] = value;
+    onChange({ ...block, headers });
+  };
+
+  const setCell = (r: number, c: number, value: string) => {
+    const rows = block.rows.map((row) => [...row]);
+    rows[r][c] = value;
+    onChange({ ...block, rows });
+  };
+
+  const addColumn = () => {
+    onChange({
+      ...block,
+      headers: [...block.headers, `Colonne ${cols + 1}`],
+      rows: block.rows.map((row) => [...row, ""]),
+    });
+  };
+
+  const removeColumn = (c: number) => {
+    if (cols <= 1) return;
+    onChange({
+      ...block,
+      headers: block.headers.filter((_, i) => i !== c),
+      rows: block.rows.map((row) => row.filter((_, i) => i !== c)),
+    });
+  };
+
+  const addRow = () => {
+    onChange({ ...block, rows: [...block.rows, Array(cols).fill("")] });
+  };
+
+  const removeRow = (r: number) => {
+    onChange({ ...block, rows: block.rows.filter((_, i) => i !== r) });
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              {block.headers.map((header, c) => (
+                <th key={c} className="p-1 align-bottom">
+                  <div className="flex items-center gap-1">
+                    <input
+                      value={header}
+                      onChange={(e) => setHeader(c, e.target.value)}
+                      placeholder={`En-tête ${c + 1}`}
+                      className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 font-semibold outline-none focus:border-brand"
+                    />
+                    <IconBtn
+                      onClick={() => removeColumn(c)}
+                      title="Supprimer la colonne"
+                      disabled={cols <= 1}
+                      danger
+                    >
+                      ✕
+                    </IconBtn>
+                  </div>
+                </th>
+              ))}
+              <th className="w-8" />
+            </tr>
+          </thead>
+          <tbody>
+            {block.rows.map((row, r) => (
+              <tr key={r}>
+                {row.map((cell, c) => (
+                  <td key={c} className="p-1">
+                    <input
+                      value={cell}
+                      onChange={(e) => setCell(r, c, e.target.value)}
+                      placeholder="…"
+                      className="w-full rounded-lg border border-gray-200 px-2 py-1.5 outline-none focus:border-brand"
+                    />
+                  </td>
+                ))}
+                <td className="p-1 text-center">
+                  <IconBtn
+                    onClick={() => removeRow(r)}
+                    title="Supprimer la ligne"
+                    danger
+                  >
+                    ✕
+                  </IconBtn>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex gap-4">
+        <button
+          onClick={addRow}
+          className="text-sm font-semibold text-brand"
+        >
+          + Ajouter une ligne
+        </button>
+        <button
+          onClick={addColumn}
+          className="text-sm font-semibold text-brand"
+        >
+          + Ajouter une colonne
+        </button>
+      </div>
+      <input
+        value={block.caption ?? ""}
+        onChange={(e) => onChange({ ...block, caption: e.target.value })}
+        placeholder="Légende du tableau (optionnelle)"
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand"
+      />
+    </div>
+  );
 }
 
 function updateFaqItem(

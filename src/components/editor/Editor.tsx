@@ -53,6 +53,7 @@ const BLOCK_MENU: { type: BlockType; label: string; icon: string }[] = [
   { type: "button", label: "Bouton", icon: "🔘" },
   { type: "cta", label: "Appel à l'action", icon: "📣" },
   { type: "quote", label: "Citation", icon: "❝" },
+  { type: "table", label: "Tableau", icon: "▦" },
   { type: "code", label: "Code", icon: "</>" },
 ];
 
@@ -581,6 +582,17 @@ function newBlock(type: BlockType): Block {
       return { id, type, text: "", cite: "" };
     case "code":
       return { id, type, language: "", code: "" };
+    case "table":
+      return {
+        id,
+        type,
+        headers: ["Colonne 1", "Colonne 2"],
+        rows: [
+          ["", ""],
+          ["", ""],
+        ],
+        caption: "",
+      };
     case "button":
       return {
         id,
