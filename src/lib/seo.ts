@@ -119,6 +119,18 @@ interface LinkInfo {
   external: number;
 }
 
+const INTERNAL_HOST = "swipelink.fr";
+
+function isInternalHost(href: string): boolean {
+  try {
+    const url = new URL(href.startsWith("//") ? `https:${href}` : href);
+    const host = url.hostname.toLowerCase();
+    return host === INTERNAL_HOST || host.endsWith(`.${INTERNAL_HOST}`);
+  } catch {
+    return false;
+  }
+}
+
 function analyzeLinks(blocks: Block[]): LinkInfo {
   let internal = 0;
   let external = 0;
@@ -137,7 +149,11 @@ function analyzeLinks(blocks: Block[]): LinkInfo {
           href.startsWith("https://") ||
           href.startsWith("//")
         ) {
-          external += 1;
+          if (isInternalHost(href)) {
+            internal += 1;
+          } else {
+            external += 1;
+          }
         } else if (href && !href.startsWith("#") && !href.startsWith("mailto:")) {
           internal += 1;
         }
