@@ -399,6 +399,56 @@ function BlockFields({
   }
 }
 
+// Extrait une grille de cellules depuis les données du presse-papiers.
+// Priorité au HTML (<table> copié depuis un autre site) puis au texte tabulé
+// (TSV : lignes séparées par des retours à la ligne, cellules par des tabulations).
+// Renvoie null si le collage ne contient qu'une seule cellule (collage normal).
+function parseClipboardGrid(
+  clipboard: DataTransfer,
+): string[][] | null {
+  let grid: string[][] = [];
+
+  const html = clipboard.getData("text/html");
+  if (html && html.includes("<table")) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const table = doc.querySelector("table");
+    if (table) {
+      grid = Array.from(table.querySelectorAll("tr"))
+        .map((tr) =>
+          Array.from(tr.querySelectorAll("th,td")).map((cell) =>
+            (cell.textContent ?? "").replace(/\s+/g, " ").trim(),
+          ),
+        )
+        .filter((row) => row.length > 0);
+    }
+  }
+
+  if (grid.length === 0) {
+    const text = clipboard.getData("text/plain");
+    if (!text) return null;
+    grid = text
+      .replace(/\r\n?/g, "\n")
+      .replace(/\n$/, "")
+      .split("\n")
+      .map((line) => line.split("\t").map((cell) => cell.trim()));
+  }
+
+  // Supprime les lignes entièrement vides.
+  grid = grid.filter((row) => row.some((cell) => cell !== ""));
+  if (grid.length === 0) return null;
+
+  // Un seul contenu → collage normal, on ne fait rien.
+  if (grid.length === 1 && grid[0].length <= 1) return null;
+
+  // Normalise le nombre de colonnes en complétant les lignes trop courtes.
+  const width = Math.max(...grid.map((row) => row.length));
+  return grid.map((row) => {
+    const padded = [...row];
+    while (padded.length < width) padded.push("");
+    return padded;
+  });
+}
+
 function TableFields({
   block,
   onChange,
@@ -407,6 +457,17 @@ function TableFields({
   onChange: (block: Block) => void;
 }) {
   const cols = block.headers.length;
+
+  // Collage d'un tableau complet depuis un autre site : on reconstruit
+  // automatiquement en-têtes, lignes et colonnes. La première ligne collée
+  // sert d'en-tête, les suivantes de données.
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const grid = parseClipboardGrid(e.clipboardData);
+    if (!grid) return; // collage d'une seule cellule → comportement normal
+    e.preventDefault();
+    const [headers, ...rows] = grid;
+    onChange({ ...block, headers, rows });
+  };
 
   const setHeader = (c: number, value: string) => {
     const headers = [...block.headers];
@@ -457,6 +518,7 @@ function TableFields({
                     <input
                       value={header}
                       onChange={(e) => setHeader(c, e.target.value)}
+                      onPaste={handlePaste}
                       placeholder={`En-tête ${c + 1}`}
                       className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 font-semibold outline-none focus:border-brand"
                     />
@@ -482,6 +544,7 @@ function TableFields({
                     <input
                       value={cell}
                       onChange={(e) => setCell(r, c, e.target.value)}
+                      onPaste={handlePaste}
                       placeholder="…"
                       className="w-full rounded-lg border border-gray-200 px-2 py-1.5 outline-none focus:border-brand"
                     />
@@ -515,6 +578,11 @@ function TableFields({
           + Ajouter une colonne
         </button>
       </div>
+      <p className="text-xs text-gray-400">
+        Astuce : copiez un tableau depuis un autre site, cliquez dans une
+        cellule ci-dessus et collez — les colonnes et lignes sont créées
+        automatiquement.
+      </p>
       <input
         value={block.caption ?? ""}
         onChange={(e) => onChange({ ...block, caption: e.target.value })}
