@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { deleteArticle, getArticle, updateArticle } from "@/lib/store";
 import { syncUnpublishFromSite } from "@/lib/publish-site";
 import { Article } from "@/lib/types";
+import { findSlugOwner, slugConflictMessage } from "@/lib/slug-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,17 @@ export async function PUT(
     patch = await req.json();
   } catch {
     return NextResponse.json({ error: "Corps JSON invalide" }, { status: 400 });
+  }
+
+  // Anti-doublon : refuse un changement de slug vers un slug déjà pris.
+  if (typeof patch.slug === "string" && patch.slug) {
+    const owner = await findSlugOwner(patch.slug, id);
+    if (owner) {
+      return NextResponse.json(
+        { error: slugConflictMessage(owner), conflictId: owner.id },
+        { status: 409 }
+      );
+    }
   }
 
   // Le PUT ne sert qu'à sauvegarder le brouillon. La publication (statut,

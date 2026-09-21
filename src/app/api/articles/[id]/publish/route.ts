@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getArticle, updateArticle } from "@/lib/store";
 import { contentSnapshot } from "@/lib/types";
 import { syncPublishToSite } from "@/lib/publish-site";
+import { findSlugOwner, slugConflictMessage } from "@/lib/slug-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,24 @@ export async function POST(
   const existing = await getArticle(id);
   if (!existing) {
     return NextResponse.json({ error: "Article introuvable" }, { status: 404 });
+  }
+
+  // Un slug est indispensable : il détermine l'URL publique et le nom du
+  // fichier poussé sur le site vitrine (sans lui : blog/.html).
+  if (!existing.slug) {
+    return NextResponse.json(
+      { error: "Impossible de publier : l'article n'a pas de slug." },
+      { status: 400 }
+    );
+  }
+
+  // Anti-doublon : jamais deux articles en ligne sur le même slug.
+  const owner = await findSlugOwner(existing.slug, id);
+  if (owner) {
+    return NextResponse.json(
+      { error: slugConflictMessage(owner), conflictId: owner.id },
+      { status: 409 }
+    );
   }
 
   const updated = await updateArticle(id, {
