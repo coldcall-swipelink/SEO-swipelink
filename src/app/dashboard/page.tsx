@@ -90,6 +90,9 @@ export default function DashboardPage() {
             SwipeLink SEO
           </Link>
           <div className="flex items-center gap-4 text-sm">
+            <Link href="/performance" className="text-gray-600 hover:text-gray-900">
+              Performance
+            </Link>
             <Link href="/categories" className="text-gray-600 hover:text-gray-900">
               Catégories
             </Link>
