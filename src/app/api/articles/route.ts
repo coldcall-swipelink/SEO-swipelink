@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createArticle, listArticles, findTemplate } from "@/lib/store";
 import { Article, emptyArticle, cloneBlocksWithNewIds } from "@/lib/types";
 import { uniqueId } from "@/lib/slug";
+import { findSlugOwner, slugConflictMessage } from "@/lib/slug-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,15 @@ export async function POST(req: NextRequest) {
 
   const { useTemplate, ...fields } = body;
   const article: Article = { ...base, ...fields, id, createdAt: now, updatedAt: now };
+
+  // Anti-doublon : refuse la création si le slug est déjà pris.
+  const owner = await findSlugOwner(article.slug);
+  if (owner) {
+    return NextResponse.json(
+      { error: slugConflictMessage(owner), conflictId: owner.id },
+      { status: 409 }
+    );
+  }
 
   // Démarrage depuis le template de la catégorie : copie du contenu du modèle.
   if (useTemplate && article.categoryId) {
